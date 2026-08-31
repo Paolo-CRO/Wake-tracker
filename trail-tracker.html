@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wake — Trail Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2439">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wake">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --navy: #0B2439;
+    --navy-deep: #071726;
+    --paper: #ECE6D6;
+    --paper-dim: #d9d2bd;
+    --rust: #C8442E;
+    --rust-dim: #8f3020;
+    --teal: #2C7873;
+    --amber: #D89A3E;
+    --green: #4C9A5B;
+    --gray: #9AA5B1;
+    --ink: #2A3B47;
+    --ink-soft: #6b7f8c;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--navy-deep);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    color:var(--paper);
+    overscroll-behavior:none;
+  }
+  #app{ display:flex; flex-direction:column; height:100vh; height:100dvh; }
+  header{
+    padding:14px 18px 10px; background:var(--navy); border-bottom:1px solid #12324a;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header h1{ font-size:17px; margin:0; font-weight:600; letter-spacing:0.2px; color:var(--paper); }
+  header h1 span{ color:var(--rust); }
+  .header-right{ display:flex; align-items:center; gap:6px; }
+  #status-pill{
+    font-size:11px; padding:3px 9px; border-radius:20px;
+    border:1px solid var(--ink-soft); color:var(--ink-soft);
+  }
+  #status-pill.live{ border-color:var(--rust); color:var(--rust); animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.55;} }
+  #tripsBtn, #settingsBtn, #fishLogBtn{
+    background:transparent; border:1px solid #2c4258; color:var(--paper);
+    font-size:12px; padding:6px 10px; border-radius:8px; cursor:pointer;
+  }
+  #settingsBtn, #fishLogBtn{ font-size:15px; padding:6px 11px; }
+
+  #compassWidget{
+    position:absolute; left:14px; top:14px; z-index:500;
+    width:76px; height:76px; border-radius:50%;
+    background:rgba(11,36,57,0.85); border:2px solid var(--paper-dim);
+    display:none; align-items:center; justify-content:center; flex-direction:column;
+    cursor:pointer;
+  }
+  #compassWidget.visible{ display:flex; }
+  #compassDial{
+    width:56px; height:56px; position:relative; transition:transform 0.15s linear;
+  }
+  #compassDial span{
+    position:absolute; font-size:10px; font-weight:700; color:var(--paper);
+  }
+  #compassDial .n{ top:0; left:50%; transform:translateX(-50%); color:var(--rust); }
+  #compassDial .e{ right:0; top:50%; transform:translateY(-50%); }
+  #compassDial .s{ bottom:0; left:50%; transform:translateX(-50%); }
+  #compassDial .w{ left:0; top:50%; transform:translateY(-50%); }
+  #compassPointer{
+    position:absolute; top:2px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent;
+    border-bottom:12px solid var(--rust);
+  }
+  #compassDeg{ font-size:9.5px; color:var(--ink-soft); margin-top:2px; }
+
+  #mapWrap{ position:relative; flex:1; min-height:0; }
+  #map{ width:100%; height:100%; background:var(--paper-dim); }
+
+  #fabSpot{
+    position:absolute; right:16px; bottom:18px; z-index:500;
+    width:60px; height:60px; border-radius:50%;
+    background:var(--rust); color:var(--paper); border:none;
+    font-size:11px; font-weight:700; letter-spacing:0.3px;
+    box-shadow:0 3px 10px rgba(0,0,0,0.4);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; line-height:1.1;
+  }
+  #fabSpot .fab-icon{ font-size:19px; margin-bottom:1px; }
+
+  #fabAnchor{
+    position:absolute; left:16px; bottom:18px; z-index:500;
+    width:60px; height:60px; border-radius:50%;
+    background:var(--amber); color:var(--navy); border:none;
+    font-size:11px; font-weight:700; letter-spacing:0.3px;
+    box-shadow:0 3px 10px rgba(0,0,0,0.4);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; line-height:1.15;
+  }
+  #fabAnchor .fab-icon{ font-size:19px; margin-bottom:1px; }
+
+  #anchorPanel{
+    position:absolute; left:10px; right:10px; bottom:90px; z-index:500;
+    background:rgba(11,36,57,0.95); border:1px solid var(--amber); border-radius:12px;
+    padding:11px 13px; display:none; flex-direction:column; gap:9px;
+    box-shadow:0 3px 12px rgba(0,0,0,0.4);
+  }
+  #anchorPanel.visible{ display:flex; }
+  .anchor-row{ display:flex; align-items:center; gap:11px; }
+  #anchorArrow{ flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; transition:transform 0.2s linear; visibility:hidden; }
+  #anchorStatus{ font-size:12.5px; color:var(--paper); line-height:1.4; }
+  .anchor-actions{ display:flex; gap:8px; }
+  .anchor-actions button{ flex:1; font-size:12.5px; padding:9px 8px; }
+  #anchorStopBtn{ background:var(--rust); color:var(--paper); }
+  #anchorSaveBtn{ background:var(--green); color:var(--paper); }
+  #anchorDismissBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; }
+
+  #clearHighlightsBtn{
+    position:absolute; right:16px; top:14px; z-index:500;
+    background:var(--navy); color:var(--paper); border:1px solid var(--rust);
+    font-size:12px; padding:8px 12px; border-radius:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.35);
+  }
+
+  #banner{
+    display:none; padding:10px 18px; font-size:13px; line-height:1.4;
+    background:#3a2320; color:#f0c9c0; border-bottom:1px solid var(--rust-dim);
+  }
+
+  #stats{ display:flex; justify-content:space-around; padding:12px 10px 6px; background:var(--navy); }
+  .stat{ text-align:center; }
+  .stat b{ display:block; font-size:19px; font-weight:600; color:var(--paper); font-variant-numeric: tabular-nums; }
+  .stat small{ font-size:10.5px; color:var(--ink-soft); letter-spacing:0.3px; }
+
+  #controls{ display:flex; flex-wrap:wrap; gap:8px; padding:10px 16px 14px; background:var(--navy); }
+  button{
+    border:none; border-radius:10px; padding:13px 10px; font-size:14px; font-weight:600;
+    font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  #toggleBtn{ background:var(--rust); color:var(--paper); flex:1 1 100%; padding:14px 10px; font-size:15px;}
+  #toggleBtn.tracking{ background:var(--ink); color:var(--paper); }
+  #finishBtn{ background:var(--teal); color:var(--paper); flex:1 1 auto; }
+  #finishBtn:disabled{ opacity:0.35; }
+  #exportBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
+  #exportBtn:disabled{ opacity:0.35; }
+
+  /* Trips overlay */
+  #tripsOverlay, #settingsOverlay, #fishLogOverlay{ position:fixed; inset:0; background:rgba(7,23,38,0.92); display:none; flex-direction:column; z-index:1000; }
+  #tripsOverlay.open, #settingsOverlay.open, #fishLogOverlay.open{ display:flex; }
+  #tripsHeader{ display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #12324a; }
+  #tripsHeader h2{ font-size:16px; margin:0; }
+  #closeTripsBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; padding:8px 12px; }
+  #tripsList{ flex:1; overflow-y:auto; padding:10px 14px; }
+  .trip-card{ background:var(--navy); border:1px solid #12324a; border-radius:12px; padding:14px; margin-bottom:10px; }
+  .trip-card .trip-title{ font-size:14px; font-weight:600; margin-bottom:4px; }
+  .trip-card .trip-meta{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+  .trip-actions{ display:flex; gap:8px; }
+  .trip-actions button{ font-size:12.5px; padding:8px 10px; flex:1; }
+  .btn-view{ background:var(--teal); color:var(--paper); }
+  .btn-gpx{ background:transparent; color:var(--paper); border:1px solid #2c4258; }
+  .btn-del{ background:transparent; color:#e08d80; border:1px solid var(--rust-dim); }
+  #emptyTrips{ text-align:center; color:var(--ink-soft); font-size:13px; padding:40px 20px; }
+
+  /* Settings overlay */
+  #settingsList{ padding:16px 18px; }
+  .settings-block{ margin-bottom:26px; }
+  .settings-block h3{ font-size:13px; color:var(--ink-soft); margin:0 0 10px; font-weight:600; letter-spacing:0.3px; }
+  .unit-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .unit-btn{
+    background:var(--ink); color:var(--paper); border:2px solid transparent;
+    border-radius:10px; padding:12px 8px; font-size:13.5px; text-align:center;
+  }
+  .unit-btn.selected{ border-color:var(--paper); background:var(--teal); }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; }
+  .toggle-row p{ font-size:12px; color:var(--ink-soft); margin:4px 0 0; max-width:260px; }
+  .switch{ position:relative; width:48px; height:28px; flex:0 0 auto; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch-track{
+    position:absolute; inset:0; background:#2c4258; border-radius:20px; cursor:pointer; transition:background 0.2s;
+  }
+  .switch-track::before{
+    content:''; position:absolute; width:22px; height:22px; left:3px; top:3px;
+    background:var(--paper); border-radius:50%; transition:transform 0.2s;
+  }
+  .switch input:checked + .switch-track{ background:var(--rust); }
+  .switch input:checked + .switch-track::before{ transform:translateX(20px); }
+
+  /* Spot modal */
+  #spotOverlay{
+    position:fixed; inset:0; background:rgba(7,23,38,0.75); display:none;
+    align-items:flex-end; justify-content:center; z-index:1100;
+  }
+  #spotOverlay.open{ display:flex; }
+  #spotModal{
+    width:100%; max-width:480px; background:var(--navy); border-radius:18px 18px 0 0;
+    padding:18px 18px 22px; max-height:85vh; overflow-y:auto;
+  }
+  #spotModal h2{ font-size:16px; margin:0 0 4px; }
+  #spotModal .spot-sub{ font-size:12px; color:var(--ink-soft); margin-bottom:14px; }
+  .type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+  .type-btn{
+    background:var(--ink); color:var(--paper); border:2px solid transparent;
+    border-radius:10px; padding:12px 8px; font-size:13.5px; text-align:center;
+  }
+  .type-btn.selected{ border-color:var(--paper); }
+  .type-btn[data-type="ascending"].selected{ background:var(--teal); }
+  .type-btn[data-type="descending"].selected{ background:var(--rust); }
+  .type-btn[data-type="fish"].selected{ background:var(--green); }
+  .type-btn[data-type="other"].selected{ background:var(--gray); color:var(--navy); }
+
+  .spot-fields label{ display:block; font-size:12px; color:var(--ink-soft); margin:10px 0 5px; }
+  .depth-row{ display:flex; align-items:center; gap:8px; }
+  .depth-row input{ flex:1; }
+  .depth-row span{ color:var(--ink-soft); font-size:13px; }
+  input[type="text"], input[type="number"]{
+    width:100%; background:var(--navy-deep); border:1px solid #2c4258; color:var(--paper);
+    border-radius:8px; padding:11px 12px; font-size:15px; font-family:inherit;
+  }
+  #spotActions{ display:flex; gap:10px; margin-top:18px; }
+  #spotActions button{ flex:1; }
+  #spotCancel{ background:transparent; border:1px solid #2c4258; color:var(--paper); }
+  #spotSave{ background:var(--rust); color:var(--paper); }
+  #spotSave:disabled{ opacity:0.4; }
+  .hidden{ display:none !important; }
+
+  .leaflet-control-attribution{ font-size:9px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Wake <span>●</span> Trail Tracker</h1>
+    <div class="header-right">
+      <button id="settingsBtn">⚙</button>
+      <button id="fishLogBtn">🐟</button>
+      <button id="tripsBtn">Trips</button>
+      <div id="status-pill">idle</div>
+    </div>
+  </header>
+
+  <div id="banner"></div>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="compassWidget">
+      <div id="compassDial">
+        <span class="n">N</span><span class="e">E</span><span class="s">S</span><span class="w">W</span>
+        <div id="compassPointer"></div>
+      </div>
+      <div id="compassDeg">tap to enable</div>
+    </div>
+    <button id="fabSpot"><span class="fab-icon">📍</span>Save<br>Spot</button>
+    <button id="fabAnchor"><span class="fab-icon">⚓</span>Anchor</button>
+    <button id="clearHighlightsBtn" class="hidden">✕ Clear fish markers</button>
+
+    <div id="anchorPanel">
+      <div class="anchor-row">
+        <div id="anchorArrow">
+          <svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 1.5 L20 21 L12 16.5 L4 21 Z" fill="#D89A3E" stroke="#ECE6D6" stroke-width="1.3"/></svg>
+        </div>
+        <div id="anchorStatus">⚓ Getting a fix… stay put for a few seconds.</div>
+      </div>
+      <div class="anchor-actions" id="anchorActiveActions">
+        <button id="anchorStopBtn">Stop anchor</button>
+      </div>
+      <div class="anchor-actions hidden" id="anchorStoppedActions">
+        <button id="anchorSaveBtn">🐟 Save as spot</button>
+        <button id="anchorDismissBtn">✕ Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat"><b id="statDist">0.0</b><small>NM COVERED</small></div>
+    <div class="stat"><b id="statSpeed">0.0</b><small id="statSpeedLabel">KN</small></div>
+    <div class="stat"><b id="statTime">00:00</b><small>ELAPSED</small></div>
+    <div class="stat"><b id="statPoints">0</b><small>FIXES</small></div>
+  </div>
+
+  <div id="controls">
+    <button id="toggleBtn">Start tracking</button>
+    <button id="finishBtn" disabled>Finish &amp; Save Trip</button>
+    <button id="exportBtn" disabled>Export GPX</button>
+  </div>
+</div>
+
+<div id="tripsOverlay">
+  <div id="tripsHeader">
+    <h2>Saved trips</h2>
+    <button id="closeTripsBtn">Close</button>
+  </div>
+  <div style="padding:12px 14px 0;">
+    <button id="combinedViewBtn" style="width:100%;background:var(--teal);color:var(--paper);">🗺 View combined coverage (all trips)</button>
+  </div>
+  <div id="tripsList"></div>
+</div>
+
+<div id="settingsOverlay">
+  <div id="tripsHeader">
+    <h2>Settings</h2>
+    <button id="closeSettingsBtn">Close</button>
+  </div>
+  <div id="settingsList">
+    <div class="settings-block">
+      <h3>Speed unit</h3>
+      <div class="unit-grid" id="unitGrid">
+        <button class="unit-btn" data-unit="knots">Knots (kn)</button>
+        <button class="unit-btn" data-unit="kmh">km/h</button>
+        <button class="unit-btn" data-unit="mph">mph</button>
+        <button class="unit-btn" data-unit="ms">m/s</button>
+      </div>
+    </div>
+    <div class="settings-block">
+      <h3>Compass</h3>
+      <div class="toggle-row">
+        <div>
+          <div>Show compass overlay</div>
+          <p>Uses your phone's motion sensor. Accuracy varies by device and may need calibration (wave the phone in a figure-8).</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="compassToggle">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+    </div>
+    <div class="settings-block">
+      <h3>Backup</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Saves every trip, spot, fish photo, and setting into one file in your phone's Downloads folder — your safety net if storage ever gets cleared or you switch phones.</p>
+      <button id="exportAllBtn" style="width:100%;background:var(--teal);color:var(--paper);margin-bottom:8px;">📤 Export all data</button>
+      <button id="restoreAllBtn" style="width:100%;background:transparent;color:var(--paper);border:1px solid #2c4258;">📥 Restore from backup file</button>
+      <input type="file" accept=".json,application/json" id="restoreInput" style="display:none">
+      <div id="storageUsage" style="margin-top:12px;font-size:11.5px;color:var(--ink-soft);"></div>
+    </div>
+  </div>
+</div>
+
+<div id="fishLogOverlay">
+  <div id="tripsHeader">
+    <h2>Fish log</h2>
+    <button id="closeFishLogBtn">Close</button>
+  </div>
+  <div id="settingsList">
+    <div class="settings-block">
+      <h3>Species</h3>
+      <select id="fishFilterSelect" style="width:100%;background:var(--navy-deep);border:1px solid #2c4258;color:var(--paper);border-radius:8px;padding:11px 12px;font-size:15px;font-family:inherit;"></select>
+      <button id="showFishBtn" style="width:100%;margin-top:12px;background:var(--rust);color:var(--paper);">Show all catches on map</button>
+      <div id="fishLogEmpty" class="hidden" style="margin-top:16px;font-size:13px;color:var(--ink-soft);">No fish saved yet — mark one with Save Spot next time you catch something.</div>
+    </div>
+  </div>
+</div>
+
+<div id="spotOverlay">
+  <div id="spotModal">
+    <h2>Save this spot</h2>
+    <div class="spot-sub" id="spotCoords">Getting position…</div>
+
+    <div class="type-grid">
+      <button class="type-btn" data-type="ascending">↑ Ascending<br><small>depth getting shallower</small></button>
+      <button class="type-btn" data-type="descending">↓ Descending<br><small>depth getting deeper</small></button>
+      <button class="type-btn" data-type="fish">🐟 Fish</button>
+      <button class="type-btn" data-type="other">✎ Other</button>
+    </div>
+
+    <div class="spot-fields">
+      <div id="fieldsDepth" class="hidden">
+        <label>Depth change (meters)</label>
+        <div class="depth-row">
+          <input type="number" id="depthFrom" placeholder="From" inputmode="decimal">
+          <span>→</span>
+          <input type="number" id="depthTo" placeholder="To" inputmode="decimal">
+        </div>
+      </div>
+      <div id="fieldsFish" class="hidden">
+        <label>Fish (type new, or pick a saved one)</label>
+        <input type="text" id="fishInput" list="fishHistory" placeholder="e.g. Sea bass" autocomplete="off">
+        <datalist id="fishHistory"></datalist>
+        <label>Photo (optional)</label>
+        <input type="file" accept="image/*" capture="environment" id="fishPhotoInput" style="display:none">
+        <button type="button" id="fishPhotoBtn" style="width:100%;background:var(--ink);color:var(--paper);border:1px dashed #3a5165;">📷 Take / choose photo</button>
+        <div id="fishPhotoPreviewWrap" class="hidden" style="margin-top:8px;">
+          <img id="fishPhotoPreview" style="width:100%;border-radius:8px;max-height:170px;object-fit:cover;display:block;">
+          <button type="button" id="fishPhotoRemove" style="margin-top:6px;width:100%;background:transparent;border:1px solid var(--rust-dim);color:#e08d80;">Remove photo</button>
+        </div>
+      </div>
+      <div id="fieldsOther" class="hidden">
+        <label>Note</label>
+        <input type="text" id="otherInput" placeholder="What did you see?">
+      </div>
+    </div>
+
+    <div id="spotActions">
+      <button id="spotCancel">Cancel</button>
+      <button id="spotSave" disabled>Save spot</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Real, standard browser storage (IndexedDB) — works in any page, not just inside claude.ai.
+// Exposes the same get/set/delete/list shape the rest of the app already uses.
+window.storage = (function(){
+  const DB_NAME = 'wake-trail-tracker';
+  const STORE = 'kv';
+  let dbPromise = null;
+
+  function openDB(){
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbPromise;
+  }
+
+  async function get(key, shared){
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = () => {
+        if(req.result === undefined) reject(new Error('key not found: ' + key));
+        else resolve({ key, value: req.result, shared: !!shared });
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function set(key, value, shared){
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = () => resolve({ key, value, shared: !!shared });
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function del(key, shared){
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve({ key, deleted: true, shared: !!shared });
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function list(prefix, shared){
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => {
+        let keys = req.result;
+        if(prefix) keys = keys.filter(k => String(k).startsWith(prefix));
+        resolve({ keys, prefix, shared: !!shared });
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  return { get, set, delete: del, list };
+})();
+
+// Ask the browser not to silently evict this data under storage pressure, where supported.
+if(navigator.storage && navigator.storage.persist){
+  navigator.storage.persist().catch(()=>{});
+}
+
+(function(){
+  const ACTIVE_KEY = 'wake:active-trail';
+  const INDEX_KEY = 'wake:trips-index';
+  const TRIP_PREFIX = 'wake:trip:';
+  const FISH_KEY = 'wake:known-fish';
+
+  let map, polyline, currentMarker;
+  let points = [];        // [lat, lon, timestamp]
+  let markers = [];       // {lat, lon, ts, type, label}
+  let markerLayers = [];
+  let watchId = null;
+  let tracking = false;
+  let startedAt = null;
+  let includeInCombined = true;
+  let timerInterval = null;
+  let saveTimer = null;
+  let knownFish = [];
+  let selectedType = null;
+  let pendingSpotCoords = null;
+  let pendingHeading = null;
+  let speedUnit = 'knots';
+  let showCompass = false;
+  let currentSpeedMps = 0;
+  let compassActive = false;
+  let compassListenerFn = null;
+  let pendingPhotoDataUrl = null;
+  let fishHighlightLayers = [];
+  let anchorActive = false;
+  let anchorSamples = [];   // [lat, lon] pings collected while anchoring
+  let anchorPoint = null;   // { lat, lon } best estimate
+  let anchorMarkerLayer = null;
+  let anchorLineLayer = null;
+  let spotFromAnchor = false;
+
+  const toggleBtn = document.getElementById('toggleBtn');
+  const finishBtn = document.getElementById('finishBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const tripsBtn = document.getElementById('tripsBtn');
+  const closeTripsBtn = document.getElementById('closeTripsBtn');
+  const tripsOverlay = document.getElementById('tripsOverlay');
+  const tripsList = document.getElementById('tripsList');
+  const combinedViewBtn = document.getElementById('combinedViewBtn');
+  const statusPill = document.getElementById('status-pill');
+  const banner = document.getElementById('banner');
+  const statDist = document.getElementById('statDist');
+  const statTime = document.getElementById('statTime');
+  const statPoints = document.getElementById('statPoints');
+  const statSpeed = document.getElementById('statSpeed');
+  const statSpeedLabel = document.getElementById('statSpeedLabel');
+
+  const settingsBtn = document.getElementById('settingsBtn');
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const unitGrid = document.getElementById('unitGrid');
+  const compassToggle = document.getElementById('compassToggle');
+  const compassWidget = document.getElementById('compassWidget');
+  const compassDial = document.getElementById('compassDial');
+  const compassDeg = document.getElementById('compassDeg');
+  const exportAllBtn = document.getElementById('exportAllBtn');
+  const restoreAllBtn = document.getElementById('restoreAllBtn');
+  const restoreInput = document.getElementById('restoreInput');
+  const storageUsageEl = document.getElementById('storageUsage');
+
+  async function updateStorageUsage(){
+    if(!(navigator.storage && navigator.storage.estimate)){
+      storageUsageEl.textContent = '';
+      return;
+    }
+    try{
+      const est = await navigator.storage.estimate();
+      const usedMB = (est.usage / (1024*1024)).toFixed(1);
+      const quotaMB = (est.quota / (1024*1024)).toFixed(0);
+      storageUsageEl.textContent = `Using ${usedMB} MB of ~${quotaMB} MB available on this device.`;
+    } catch(e){ storageUsageEl.textContent = ''; }
+  }
+
+  const fabSpot = document.getElementById('fabSpot');
+  const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
+  const fabAnchor = document.getElementById('fabAnchor');
+  const anchorPanel = document.getElementById('anchorPanel');
+  const anchorStatus = document.getElementById('anchorStatus');
+  const anchorArrow = document.getElementById('anchorArrow');
+  const anchorActiveActions = document.getElementById('anchorActiveActions');
+  const anchorStoppedActions = document.getElementById('anchorStoppedActions');
+  const anchorStopBtn = document.getElementById('anchorStopBtn');
+  const anchorSaveBtn = document.getElementById('anchorSaveBtn');
+  const anchorDismissBtn = document.getElementById('anchorDismissBtn');
+  const spotOverlay = document.getElementById('spotOverlay');
+  const spotCoords = document.getElementById('spotCoords');
+  const spotCancel = document.getElementById('spotCancel');
+  const spotSave = document.getElementById('spotSave');
+  const fieldsDepth = document.getElementById('fieldsDepth');
+  const fieldsFish = document.getElementById('fieldsFish');
+  const fieldsOther = document.getElementById('fieldsOther');
+  const depthFrom = document.getElementById('depthFrom');
+  const depthTo = document.getElementById('depthTo');
+  const fishInput = document.getElementById('fishInput');
+  const fishHistory = document.getElementById('fishHistory');
+  const otherInput = document.getElementById('otherInput');
+  const fishPhotoInput = document.getElementById('fishPhotoInput');
+  const fishPhotoBtn = document.getElementById('fishPhotoBtn');
+  const fishPhotoPreviewWrap = document.getElementById('fishPhotoPreviewWrap');
+  const fishPhotoPreview = document.getElementById('fishPhotoPreview');
+  const fishPhotoRemove = document.getElementById('fishPhotoRemove');
+
+  const fishLogBtn = document.getElementById('fishLogBtn');
+  const closeFishLogBtn = document.getElementById('closeFishLogBtn');
+  const fishLogOverlay = document.getElementById('fishLogOverlay');
+  const fishFilterSelect = document.getElementById('fishFilterSelect');
+  const showFishBtn = document.getElementById('showFishBtn');
+  const fishLogEmpty = document.getElementById('fishLogEmpty');
+
+  function showBanner(msg){ banner.textContent = msg; banner.style.display = 'block'; }
+  function hideBanner(){ banner.style.display = 'none'; }
+
+  function initMap(centerLat, centerLon){
+    map = L.map('map', { zoomControl: true, attributionControl: true }).setView([centerLat, centerLon], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap'
+    }).addTo(map);
+    polyline = L.polyline([], { color: '#C8442E', weight: 3.5, opacity: 0.95 }).addTo(map);
+  }
+
+  function haversineNM(a, b){
+    const R = 3440.065;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(b[0]-a[0]);
+    const dLon = toRad(b[1]-a[1]);
+    const lat1 = toRad(a[0]), lat2 = toRad(b[0]);
+    const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+  }
+
+  function totalDistanceNM(pts){
+    let d = 0;
+    for(let i=1;i<pts.length;i++) d += haversineNM(pts[i-1], pts[i]);
+    return d;
+  }
+
+  const MARKER_COLORS = { ascending:'#2C7873', descending:'#C8442E', fish:'#4C9A5B', other:'#9AA5B1' };
+  const MARKER_SYMBOL = { ascending:'↑', descending:'↓', fish:'🐟', other:'✎' };
+
+  function bearingDeg(lat1, lon1, lat2, lon2){
+    const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+    const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }
+
+  // Direction of travel over the last few fixes — used as an arrow so you can see
+  // which way you were heading (and therefore which direction you came from) at a spot.
+  function computeHeading(){
+    if(points.length < 2) return null;
+    const n = points.length;
+    const start = points[Math.max(0, n - 6)];
+    const end = points[n - 1];
+    if(start[0] === end[0] && start[1] === end[1]) return null;
+    return bearingDeg(start[0], start[1], end[0], end[1]);
+  }
+
+  // ---- Anchor: average out GPS drift into a best-guess "true" position ----
+  function haversineMeters(a, b){ return haversineNM(a, b) * 1852; }
+
+  // Buckets pings into small grid cells and picks the cell with the most hits —
+  // i.e. "which numbers repeat the most" — then averages just those for sub-cell
+  // precision. Falls back gracefully to a plain average when nothing repeats yet.
+  function computeAnchorEstimate(){
+    if(anchorSamples.length === 0) return null;
+    const GRID = 0.000027; // roughly 3 meters
+    const buckets = new Map();
+    anchorSamples.forEach(([lat, lon]) => {
+      const key = Math.round(lat / GRID) + ',' + Math.round(lon / GRID);
+      const b = buckets.get(key) || { count: 0, sumLat: 0, sumLon: 0 };
+      b.count++; b.sumLat += lat; b.sumLon += lon;
+      buckets.set(key, b);
+    });
+    let best = null;
+    buckets.forEach(b => { if(!best || b.count > best.count) best = b; });
+    return { lat: best.sumLat / best.count, lon: best.sumLon / best.count };
+  }
+
+  function computeAnchorSpreadMeters(anchor){
+    if(!anchor || anchorSamples.length === 0) return 0;
+    const total = anchorSamples.reduce((sum, [lat, lon]) => sum + haversineMeters([lat, lon], [anchor.lat, anchor.lon]), 0);
+    return total / anchorSamples.length;
+  }
+
+  function anchorIcon(){
+    return L.divIcon({
+      html: `<div style="width:30px;height:30px;border-radius:50%;background:#D89A3E;border:2px solid #ECE6D6;display:flex;align-items:center;justify-content:center;font-size:15px;">⚓</div>`,
+      className: '', iconSize: [30,30], iconAnchor: [15,15]
+    });
+  }
+
+  function updateAnchorVisuals(currentLatLon){
+    if(!anchorPoint) return;
+    const anchorLatLng = [anchorPoint.lat, anchorPoint.lon];
+    if(!anchorMarkerLayer){
+      anchorMarkerLayer = L.marker(anchorLatLng, { icon: anchorIcon() }).addTo(map);
+    } else {
+      anchorMarkerLayer.setLatLng(anchorLatLng);
+    }
+    if(currentLatLon){
+      if(!anchorLineLayer){
+        anchorLineLayer = L.polyline([currentLatLon, anchorLatLng], { color:'#D89A3E', weight:2, dashArray:'6,6' }).addTo(map);
+      } else {
+        anchorLineLayer.setLatLngs([currentLatLon, anchorLatLng]);
+      }
+    }
+  }
+
+  function clearAnchorVisuals(){
+    if(anchorMarkerLayer){ map.removeLayer(anchorMarkerLayer); anchorMarkerLayer = null; }
+    if(anchorLineLayer){ map.removeLayer(anchorLineLayer); anchorLineLayer = null; }
+  }
+
+  function updateAnchorPanel(currentLatLon){
+    if(!anchorPoint){
+      anchorStatus.textContent = '⚓ Getting a fix… stay put for a few seconds.';
+      anchorArrow.style.visibility = 'hidden';
+      return;
+    }
+    const spread = computeAnchorSpreadMeters(anchorPoint);
+    let readout = '';
+    if(currentLatLon){
+      const distM = haversineMeters(currentLatLon, [anchorPoint.lat, anchorPoint.lon]);
+      if(distM < 3){
+        readout = "You're on it";
+        anchorArrow.style.visibility = 'hidden';
+      } else {
+        const brg = bearingDeg(currentLatLon[0], currentLatLon[1], anchorPoint.lat, anchorPoint.lon);
+        readout = Math.round(distM) + 'm away · head ' + Math.round(brg) + '°';
+        anchorArrow.style.visibility = 'visible';
+        anchorArrow.style.transform = 'rotate(' + brg + 'deg)';
+      }
+    } else {
+      anchorArrow.style.visibility = 'hidden';
+    }
+    const state = anchorActive ? '' : ' (stopped)';
+    anchorStatus.textContent = `⚓ ${readout} · ${anchorSamples.length} pings · ±${Math.round(spread)}m${state}`;
+  }
+
+  function dismissAnchor(){
+    anchorActive = false;
+    anchorPoint = null;
+    anchorSamples = [];
+    clearAnchorVisuals();
+    anchorPanel.classList.remove('visible');
+    fabAnchor.classList.remove('hidden');
+  }
+
+  fabAnchor.addEventListener('click', ()=>{
+    anchorActive = true;
+    anchorSamples = [];
+    anchorPoint = null;
+    clearAnchorVisuals();
+    fabAnchor.classList.add('hidden');
+    anchorPanel.classList.add('visible');
+    anchorActiveActions.classList.remove('hidden');
+    anchorStoppedActions.classList.add('hidden');
+    updateAnchorPanel(points.length ? [points[points.length-1][0], points[points.length-1][1]] : null);
+    if(!tracking) startTracking(); // anchoring needs a live GPS feed
+  });
+
+  anchorStopBtn.addEventListener('click', ()=>{
+    anchorActive = false;
+    anchorActiveActions.classList.add('hidden');
+    anchorStoppedActions.classList.remove('hidden');
+    updateAnchorPanel(points.length ? [points[points.length-1][0], points[points.length-1][1]] : null);
+  });
+
+  anchorSaveBtn.addEventListener('click', ()=>{
+    if(!anchorPoint) return;
+    spotFromAnchor = true;
+    openSpotModal([anchorPoint.lat, anchorPoint.lon]);
+  });
+
+  anchorDismissBtn.addEventListener('click', dismissAnchor);
+
+  function arrowIcon(color, heading){
+    const html = `<div style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;transform:rotate(${heading}deg);">
+      <svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 1.5 L20 21 L12 16.5 L4 21 Z" fill="${color}" stroke="#ECE6D6" stroke-width="1.3"/></svg>
+    </div>`;
+    return L.divIcon({ html, className: '', iconSize: [30,30], iconAnchor: [15,15] });
+  }
+
+  function makeMarkerLayer(m){
+    const popup = `<b>${MARKER_SYMBOL[m.type] || ''} ${m.label}</b>` +
+      (typeof m.heading === 'number' ? `<br><small>Heading ~${Math.round(m.heading)}°</small>` : '') +
+      `<br><small>${new Date(m.ts).toLocaleTimeString()}</small>` +
+      (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '');
+    let layer;
+    if((m.type === 'ascending' || m.type === 'descending') && typeof m.heading === 'number'){
+      layer = L.marker([m.lat, m.lon], { icon: arrowIcon(MARKER_COLORS[m.type], m.heading) });
+    } else {
+      layer = L.circleMarker([m.lat, m.lon], {
+        radius: 8, color: '#ECE6D6', weight: 2,
+        fillColor: MARKER_COLORS[m.type] || '#9AA5B1', fillOpacity: 1
+      });
+    }
+    layer.bindPopup(popup);
+    return layer;
+  }
+
+  function renderMarkers(){
+    markerLayers.forEach(l => map.removeLayer(l));
+    markerLayers = [];
+    markers.forEach(m => {
+      const layer = makeMarkerLayer(m);
+      layer.addTo(map);
+      markerLayers.push(layer);
+    });
+  }
+
+  function boatIconHtml(){
+    return `<div class="boat-rotator" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;transform:rotate(0deg);transition:transform 0.2s linear;">
+      <svg width="26" height="30" viewBox="0 0 26 34"><path d="M13 0 L23 23 Q13 30 3 23 Z" fill="#C8442E" stroke="#ECE6D6" stroke-width="1.5"/><rect x="10.5" y="16" width="5" height="12" rx="1" fill="#ECE6D6" opacity="0.85"/></svg>
+    </div>`;
+  }
+
+  function boatDivIcon(){
+    return L.divIcon({ html: boatIconHtml(), className: '', iconSize: [34,34], iconAnchor: [17,17] });
+  }
+
+  function updateBoatRotation(){
+    if(!currentMarker) return;
+    const el = currentMarker.getElement();
+    if(!el) return;
+    const rotator = el.querySelector('.boat-rotator');
+    if(!rotator) return;
+    const heading = computeHeading();
+    if(typeof heading === 'number') rotator.style.transform = 'rotate(' + heading + 'deg)';
+  }
+
+  function redraw(){
+    const latlngs = points.map(p => [p[0], p[1]]);
+    polyline.setLatLngs(latlngs);
+    if(latlngs.length){
+      const last = latlngs[latlngs.length-1];
+      if(!currentMarker){
+        currentMarker = L.marker(last, { icon: boatDivIcon() }).addTo(map);
+      } else {
+        currentMarker.setLatLng(last);
+      }
+      updateBoatRotation();
+    }
+    statDist.textContent = totalDistanceNM(points).toFixed(2);
+    statPoints.textContent = points.length;
+    finishBtn.disabled = points.length === 0;
+    exportBtn.disabled = points.length === 0;
+  }
+
+  function updateTimer(){
+    if(!startedAt){ statTime.textContent = '00:00'; return; }
+    const secs = Math.floor((Date.now() - startedAt)/1000);
+    const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+    statTime.textContent = (h>0 ? String(h).padStart(2,'0')+':' : '') +
+      String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+
+  async function persistActive(){
+    try{
+      await window.storage.set(ACTIVE_KEY, JSON.stringify({ points, markers, startedAt, tracking, includeInCombined }), false);
+    } catch(e){
+      console.error('save failed', e);
+      showBanner('Could not auto-save — storage is getting full (fish photos take up space). Tap "Finish & Save Trip" to file the current trip into its own slot, export a GPX backup, or delete an old trip under My Trips to free space.');
+    }
+  }
+
+  function schedulePersist(){
+    if(saveTimer) return;
+    saveTimer = setTimeout(async ()=>{ saveTimer = null; await persistActive(); }, 4000);
+  }
+
+  const SPEED_UNITS = {
+    knots: { factor: 1.943844, label: 'KN' },
+    kmh:   { factor: 3.6,      label: 'KM/H' },
+    mph:   { factor: 2.236936, label: 'MPH' },
+    ms:    { factor: 1,        label: 'M/S' }
+  };
+
+  function updateSpeedDisplay(){
+    const u = SPEED_UNITS[speedUnit] || SPEED_UNITS.knots;
+    const val = Math.max(0, currentSpeedMps || 0) * u.factor;
+    statSpeed.textContent = val.toFixed(1);
+    statSpeedLabel.textContent = u.label;
+  }
+
+  function onPosition(pos){
+    hideBanner();
+    const { latitude, longitude, speed } = pos.coords;
+    if(typeof speed === 'number' && !isNaN(speed) && speed >= 0){
+      currentSpeedMps = speed;
+    } else if(points.length){
+      const last = points[points.length-1];
+      const dtSec = (Date.now() - last[2]) / 1000;
+      if(dtSec > 0.3){
+        const distM = haversineNM([last[0],last[1]], [latitude,longitude]) * 1852;
+        currentSpeedMps = distM / dtSec;
+      }
+    }
+    updateSpeedDisplay();
+    points.push([latitude, longitude, Date.now()]);
+    if(points.length === 1 && map) map.setView([latitude, longitude], 15);
+    redraw();
+    schedulePersist();
+
+    if(anchorActive){
+      anchorSamples.push([latitude, longitude]);
+      if(anchorSamples.length > 400) anchorSamples.shift(); // bound memory on long anchors
+      anchorPoint = computeAnchorEstimate();
+      updateAnchorVisuals([latitude, longitude]);
+      updateAnchorPanel([latitude, longitude]);
+    } else if(anchorPoint){
+      // Stopped but not dismissed yet — keep the distance/bearing readout live.
+      updateAnchorVisuals([latitude, longitude]);
+      updateAnchorPanel([latitude, longitude]);
+    }
+  }
+
+  function onPositionError(err){
+    showBanner('Location unavailable: ' + err.message + '. Check that location access is allowed for this page.');
+  }
+
+  function startTracking(){
+    if(!navigator.geolocation){ showBanner('This browser has no GPS access.'); return; }
+    if(!startedAt){
+      // Brand new trip — ask once, up front, whether it should count toward the
+      // combined "everywhere I've been" view later (e.g. skip casual outings
+      // where you're not tracking fish/depth spots).
+      includeInCombined = confirm('Include this trip in the combined "all trips" coverage view later?\n\nOK = yes, include it.\nCancel = no, keep it separate (e.g. a casual trip where you\'re not marking fish/depth).');
+      startedAt = Date.now();
+    }
+    tracking = true;
+    toggleBtn.textContent = 'Stop tracking';
+    toggleBtn.classList.add('tracking');
+    statusPill.textContent = 'live';
+    statusPill.classList.add('live');
+    watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+      enableHighAccuracy: true, maximumAge: 1000, timeout: 15000
+    });
+    timerInterval = setInterval(updateTimer, 1000);
+    persistActive();
+  }
+
+  function stopTracking(){
+    tracking = false;
+    if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    toggleBtn.textContent = 'Resume tracking';
+    toggleBtn.classList.remove('tracking');
+    statusPill.textContent = 'paused';
+    statusPill.classList.remove('live');
+    currentSpeedMps = 0;
+    updateSpeedDisplay();
+    persistActive();
+  }
+
+  // ---- Save Spot flow ----
+  function resetSpotForm(){
+    selectedType = null;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+    fieldsDepth.classList.add('hidden');
+    fieldsFish.classList.add('hidden');
+    fieldsOther.classList.add('hidden');
+    depthFrom.value = ''; depthTo.value = ''; fishInput.value = ''; otherInput.value = '';
+    pendingPhotoDataUrl = null;
+    fishPhotoInput.value = '';
+    fishPhotoPreviewWrap.classList.add('hidden');
+    spotSave.disabled = true;
+  }
+
+  function resizeImageFile(file, maxDim, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if(w >= h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else if(h > w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  fishPhotoBtn.addEventListener('click', ()=> fishPhotoInput.click());
+
+  fishPhotoInput.addEventListener('change', async ()=>{
+    const file = fishPhotoInput.files[0];
+    if(!file) return;
+    try{
+      let dataUrl = await resizeImageFile(file, 480, 0.5);
+      // If it's still large (long, detailed photos), compress a second pass rather than
+      // risk failing to save later — a smaller photo beats losing the spot entirely.
+      if(dataUrl.length > 180000){
+        dataUrl = await resizeImageFile(file, 360, 0.4);
+      }
+      pendingPhotoDataUrl = dataUrl;
+      fishPhotoPreview.src = dataUrl;
+      fishPhotoPreviewWrap.classList.remove('hidden');
+    } catch(e){
+      showBanner('Could not process that photo — try again.');
+    }
+  });
+
+  fishPhotoRemove.addEventListener('click', ()=>{
+    pendingPhotoDataUrl = null;
+    fishPhotoInput.value = '';
+    fishPhotoPreviewWrap.classList.add('hidden');
+  });
+
+  function headingSuffix(){
+    const h = computeHeading();
+    pendingHeading = h;
+    return typeof h === 'number' ? ' · heading ~' + Math.round(h) + '°' : ' · heading unknown (keep tracking on to get one)';
+  }
+
+  function openSpotModal(overrideCoords){
+    resetSpotForm();
+    pendingSpotCoords = null;
+    pendingHeading = null;
+    spotOverlay.classList.add('open');
+
+    if(overrideCoords){
+      pendingSpotCoords = overrideCoords;
+      spotCoords.textContent = overrideCoords[0].toFixed(5) + ', ' + overrideCoords[1].toFixed(5) +
+        ' (from anchor · ' + anchorSamples.length + ' pings)' + headingSuffix();
+      return;
+    }
+
+    spotCoords.textContent = 'Getting position…';
+    // Prefer a fresh precise fix; fall back to last tracked point.
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          pendingSpotCoords = [pos.coords.latitude, pos.coords.longitude];
+          spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + headingSuffix();
+        },
+        err => {
+          if(points.length){
+            const last = points[points.length-1];
+            pendingSpotCoords = [last[0], last[1]];
+            spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + ' (last known position)' + headingSuffix();
+          } else {
+            spotCoords.textContent = 'Could not get position: ' + err.message;
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 2000 }
+      );
+    } else if(points.length){
+      const last = points[points.length-1];
+      pendingSpotCoords = [last[0], last[1]];
+      spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + ' (last known position)' + headingSuffix();
+    }
+  }
+
+  function closeSpotModal(){ spotOverlay.classList.remove('open'); }
+
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', ()=>{
+      selectedType = btn.dataset.type;
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      fieldsDepth.classList.toggle('hidden', !(selectedType === 'ascending' || selectedType === 'descending'));
+      fieldsFish.classList.toggle('hidden', selectedType !== 'fish');
+      fieldsOther.classList.toggle('hidden', selectedType !== 'other');
+      validateSpotForm();
+    });
+  });
+
+  function validateSpotForm(){
+    let ok = !!selectedType;
+    if(selectedType === 'ascending' || selectedType === 'descending'){
+      ok = ok && depthFrom.value !== '' && depthTo.value !== '';
+    } else if(selectedType === 'fish'){
+      ok = ok && fishInput.value.trim() !== '';
+    } else if(selectedType === 'other'){
+      ok = ok && otherInput.value.trim() !== '';
+    }
+    spotSave.disabled = !ok;
+  }
+  [depthFrom, depthTo, fishInput, otherInput].forEach(el => el.addEventListener('input', validateSpotForm));
+
+  async function loadKnownFish(){
+    try{
+      const res = await window.storage.get(FISH_KEY, false);
+      knownFish = res && res.value ? JSON.parse(res.value) : [];
+    } catch(e){ knownFish = []; }
+    fishHistory.innerHTML = knownFish.map(f => `<option value="${f.replace(/"/g,'&quot;')}">`).join('');
+    refreshFishFilterOptions();
+  }
+
+  async function rememberFish(name){
+    if(knownFish.includes(name)) return;
+    knownFish.push(name);
+    fishHistory.innerHTML = knownFish.map(f => `<option value="${f.replace(/"/g,'&quot;')}">`).join('');
+    refreshFishFilterOptions();
+    try{ await window.storage.set(FISH_KEY, JSON.stringify(knownFish), false); } catch(e){}
+  }
+
+  // ---- Fish log: highlight every saved location of one species, across all trips ----
+  function refreshFishFilterOptions(){
+    if(knownFish.length === 0){
+      fishFilterSelect.innerHTML = '';
+      fishFilterSelect.classList.add('hidden');
+      showFishBtn.classList.add('hidden');
+      fishLogEmpty.classList.remove('hidden');
+    } else {
+      fishFilterSelect.classList.remove('hidden');
+      showFishBtn.classList.remove('hidden');
+      fishLogEmpty.classList.add('hidden');
+      const prev = fishFilterSelect.value;
+      fishFilterSelect.innerHTML = knownFish.map(f => `<option value="${f.replace(/"/g,'&quot;')}">${f}</option>`).join('');
+      if(knownFish.includes(prev)) fishFilterSelect.value = prev;
+    }
+  }
+
+  async function collectFishLocations(species){
+    const results = [];
+    markers.forEach(m => { if(m.type === 'fish' && m.label === species) results.push(m); });
+    const index = await getIndex();
+    for(const t of index){
+      try{
+        const res = await window.storage.get(TRIP_PREFIX + t.id, false);
+        const data = JSON.parse(res.value);
+        (data.markers || []).forEach(m => { if(m.type === 'fish' && m.label === species) results.push(m); });
+      } catch(e){}
+    }
+    return results;
+  }
+
+  function fishHighlightIcon(){
+    return L.divIcon({
+      html: `<div style="width:28px;height:28px;border-radius:50%;background:#F2C94C;border:2px solid #ECE6D6;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 4px rgba(242,201,76,0.28);">🐟</div>`,
+      className: '', iconSize: [28,28], iconAnchor: [14,14]
+    });
+  }
+
+  function clearFishHighlights(){
+    fishHighlightLayers.forEach(l => map.removeLayer(l));
+    fishHighlightLayers = [];
+    clearHighlightsBtn.classList.add('hidden');
+  }
+
+  clearHighlightsBtn.addEventListener('click', ()=>{
+    clearFishHighlights();
+    hideBanner();
+  });
+
+  async function showCombinedCoverage(){
+    clearFishHighlights();
+    const index = await getIndex();
+    let allLatLngs = [];
+    let includedCount = 0;
+    for(const t of index){
+      if(t.includeInCombined === false) continue;
+      includedCount++;
+      try{
+        const res = await window.storage.get(TRIP_PREFIX + t.id, false);
+        const data = JSON.parse(res.value);
+        if(data.points && data.points.length){
+          const latlngs = data.points.map(p => [p[0], p[1]]);
+          const line = L.polyline(latlngs, { color: '#8fb0b6', weight: 2.5, opacity: 0.7 })
+            .bindPopup(`<b>${data.name || t.name}</b>`);
+          line.addTo(map);
+          fishHighlightLayers.push(line);
+          allLatLngs = allLatLngs.concat(latlngs);
+        }
+      } catch(e){}
+    }
+    if(points.length && includeInCombined) allLatLngs = allLatLngs.concat(points.map(p => [p[0], p[1]]));
+
+    if(allLatLngs.length){
+      map.fitBounds(L.latLngBounds(allLatLngs), { padding: [30,30] });
+      clearHighlightsBtn.textContent = '✕ Exit combined view';
+      clearHighlightsBtn.classList.remove('hidden');
+      const excluded = index.length - includedCount;
+      showBanner(`Showing ${includedCount} trip${includedCount===1?'':'s'} (grey) plus your current trail (red).` + (excluded ? ` ${excluded} trip${excluded===1?'':'s'} excluded.` : ''));
+    } else {
+      showBanner('No trips included in combined coverage yet — mark a trip to include it when you start tracking, or toggle one on under My Trips.');
+    }
+  }
+
+  combinedViewBtn.addEventListener('click', ()=>{
+    tripsOverlay.classList.remove('open');
+    showCombinedCoverage();
+  });
+
+  function highlightFishLocations(locations, species){
+    clearFishHighlights();
+    locations.forEach(m => {
+      const popup = `<b>🐟 ${species}</b><br><small>${new Date(m.ts).toLocaleDateString()} ${new Date(m.ts).toLocaleTimeString()}</small>` +
+        (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '');
+      const layer = L.marker([m.lat, m.lon], { icon: fishHighlightIcon() }).bindPopup(popup);
+      layer.addTo(map);
+      fishHighlightLayers.push(layer);
+    });
+    if(locations.length){
+      const group = L.featureGroup(fishHighlightLayers);
+      map.fitBounds(group.getBounds(), { padding: [40,40] });
+      clearHighlightsBtn.textContent = '✕ Clear fish markers';
+      clearHighlightsBtn.classList.remove('hidden');
+      showBanner(`Showing ${locations.length} saved catch${locations.length===1?'':'es'} of ${species}.`);
+    } else {
+      showBanner(`No saved catches of ${species} yet.`);
+    }
+  }
+
+  fishLogBtn.addEventListener('click', ()=>{
+    refreshFishFilterOptions();
+    fishLogOverlay.classList.add('open');
+  });
+  closeFishLogBtn.addEventListener('click', ()=> fishLogOverlay.classList.remove('open'));
+
+  showFishBtn.addEventListener('click', async ()=>{
+    const species = fishFilterSelect.value;
+    if(!species) return;
+    fishLogOverlay.classList.remove('open');
+    const locations = await collectFishLocations(species);
+    highlightFishLocations(locations, species);
+  });
+
+  fabSpot.addEventListener('click', ()=> openSpotModal());
+  spotCancel.addEventListener('click', ()=>{ spotFromAnchor = false; closeSpotModal(); });
+
+  spotSave.addEventListener('click', async ()=>{
+    if(!pendingSpotCoords){ showBanner('Still waiting on a GPS fix — try again in a moment.'); return; }
+    let label = '';
+    if(selectedType === 'ascending' || selectedType === 'descending'){
+      label = `${depthFrom.value}m → ${depthTo.value}m`;
+    } else if(selectedType === 'fish'){
+      label = fishInput.value.trim();
+      await rememberFish(label);
+    } else if(selectedType === 'other'){
+      label = otherInput.value.trim();
+    }
+    markers.push({ lat: pendingSpotCoords[0], lon: pendingSpotCoords[1], ts: Date.now(), type: selectedType, label, heading: pendingHeading, photo: (selectedType === 'fish' ? pendingPhotoDataUrl : null) });
+    renderMarkers();
+    await persistActive();
+    closeSpotModal();
+    if(spotFromAnchor){ spotFromAnchor = false; dismissAnchor(); }
+  });
+
+  // ---- GPX export ----
+  function pointsToGPX(pts, mks, name){
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const trkpts = pts.map(p => {
+      const iso = new Date(p[2]).toISOString();
+      return `      <trkpt lat="${p[0]}" lon="${p[1]}"><time>${iso}</time></trkpt>`;
+    }).join('\n');
+    const wpts = (mks||[]).map(m => {
+      const iso = new Date(m.ts).toISOString();
+      const cmt = typeof m.heading === 'number' ? `<cmt>Heading ~${Math.round(m.heading)}°</cmt>` : '';
+      return `  <wpt lat="${m.lat}" lon="${m.lon}"><time>${iso}</time><name>${esc(m.label)}</name><type>${esc(m.type)}</type>${cmt}</wpt>`;
+    }).join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Wake Trail Tracker" xmlns="http://www.topografix.com/GPX/1/1">
+${wpts}
+  <trk>
+    <name>${esc(name)}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+  }
+
+  function downloadGPX(pts, mks, name){
+    const gpx = pointsToGPX(pts, mks, name);
+    const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name.replace(/[^a-z0-9\-_]+/gi,'_') + '.gpx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }
+
+  // ---- Saved trips ----
+  async function getIndex(){
+    try{
+      const res = await window.storage.get(INDEX_KEY, false);
+      return res && res.value ? JSON.parse(res.value) : [];
+    } catch(e){ return []; }
+  }
+  async function saveIndex(index){ await window.storage.set(INDEX_KEY, JSON.stringify(index), false); }
+
+  async function finishTrip(){
+    if(points.length === 0) return;
+    const id = 'trip_' + Date.now();
+    const endedAt = Date.now();
+    const dist = totalDistanceNM(points);
+    const dateLabel = new Date(startedAt || endedAt).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    const name = dateLabel + ' — ' + dist.toFixed(1) + ' NM';
+
+    try{
+      await window.storage.set(TRIP_PREFIX + id, JSON.stringify({
+        points, markers, startedAt: startedAt || endedAt, endedAt, name, includeInCombined
+      }), false);
+      const index = await getIndex();
+      index.unshift({ id, name, startedAt: startedAt || endedAt, endedAt, distanceNM: dist, pointCount: points.length, markerCount: markers.length, includeInCombined });
+      await saveIndex(index);
+    } catch(e){
+      showBanner('Could not save trip — please try Export GPX to back it up manually before continuing.');
+      return;
+    }
+
+    points = [];
+    markers = [];
+    startedAt = null;
+    includeInCombined = true;
+    if(currentMarker){ map.removeLayer(currentMarker); currentMarker = null; }
+    renderMarkers();
+    redraw();
+    updateTimer();
+    await persistActive();
+  }
+
+  async function renderTripsList(){
+    const index = await getIndex();
+    if(index.length === 0){
+      tripsList.innerHTML = '<div id="emptyTrips">No saved trips yet. Tap "Finish &amp; Save Trip" after a session to file it here.</div>';
+      return;
+    }
+    tripsList.innerHTML = '';
+    index.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'trip-card';
+      const dateStr = new Date(t.startedAt).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+      const durMin = t.endedAt ? Math.round((t.endedAt - t.startedAt)/60000) : null;
+      const included = t.includeInCombined !== false;
+      card.innerHTML = `
+        <div class="trip-title">${t.name}</div>
+        <div class="trip-meta">${dateStr} · ${t.distanceNM.toFixed(2)} NM · ${t.pointCount} fixes${t.markerCount ? ' · '+t.markerCount+' spots' : ''}${durMin!==null ? ' · '+durMin+' min' : ''}<br>${included ? '✓ Included in combined view' : '— Excluded from combined view'}</div>
+        <div class="trip-actions">
+          <button class="btn-view" data-act="view" data-id="${t.id}">View</button>
+          <button class="btn-gpx" data-act="gpx" data-id="${t.id}">Export GPX</button>
+          <button class="btn-del" data-act="del" data-id="${t.id}">Delete</button>
+        </div>
+        <div class="trip-actions" style="margin-top:8px;">
+          <button class="btn-gpx" data-act="toggleCombined" data-id="${t.id}">${included ? 'Exclude from combined view' : 'Include in combined view'}</button>
+        </div>`;
+      tripsList.appendChild(card);
+    });
+  }
+
+  tripsList.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const act = btn.dataset.act;
+    if(act === 'del'){
+      if(!confirm('Delete this saved trip? This cannot be undone — export it as GPX first if you want to keep a copy.')) return;
+      try{ await window.storage.delete(TRIP_PREFIX + id, false); } catch(e){}
+      const index = await getIndex();
+      await saveIndex(index.filter(t => t.id !== id));
+      renderTripsList();
+      return;
+    }
+    if(act === 'toggleCombined'){
+      const index = await getIndex();
+      const entry = index.find(t => t.id === id);
+      if(!entry) return;
+      entry.includeInCombined = entry.includeInCombined === false; // flip
+      await saveIndex(index);
+      try{
+        const res = await window.storage.get(TRIP_PREFIX + id, false);
+        const data = JSON.parse(res.value);
+        data.includeInCombined = entry.includeInCombined;
+        await window.storage.set(TRIP_PREFIX + id, JSON.stringify(data), false);
+      } catch(e){}
+      renderTripsList();
+      return;
+    }
+    try{
+      const res = await window.storage.get(TRIP_PREFIX + id, false);
+      const data = JSON.parse(res.value);
+      if(act === 'gpx'){
+        downloadGPX(data.points, data.markers || [], data.name);
+      } else if(act === 'view'){
+        tripsOverlay.classList.remove('open');
+        polyline.setLatLngs(data.points.map(p=>[p[0],p[1]]));
+        const savedMarkers = data.markers || [];
+        markerLayers.forEach(l => map.removeLayer(l));
+        markerLayers = [];
+        savedMarkers.forEach(m => {
+          const layer = makeMarkerLayer(m);
+          layer.addTo(map);
+          markerLayers.push(layer);
+        });
+        if(data.points.length){ map.fitBounds(polyline.getBounds(), { padding:[30,30] }); }
+        showBanner('Viewing saved trip: ' + data.name + '. Start tracking to resume your live trail (this preview will be replaced).');
+      }
+    } catch(e){
+      showBanner('Could not load that trip.');
+    }
+  });
+
+  tripsBtn.addEventListener('click', ()=>{ renderTripsList(); tripsOverlay.classList.add('open'); });
+  closeTripsBtn.addEventListener('click', ()=>{ tripsOverlay.classList.remove('open'); redraw(); renderMarkers(); });
+
+  toggleBtn.addEventListener('click', ()=>{ tracking ? stopTracking() : startTracking(); });
+
+  finishBtn.addEventListener('click', async ()=>{
+    if(tracking) stopTracking();
+    await finishTrip();
+  });
+
+  exportBtn.addEventListener('click', ()=>{
+    if(points.length === 0) return;
+    const dateLabel = new Date(startedAt || Date.now()).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    downloadGPX(points, markers, 'In-progress trail — ' + dateLabel);
+  });
+
+  // ---- Settings (speed unit + compass) ----
+  const SETTINGS_KEY = 'wake:settings';
+
+  async function saveSettings(){
+    try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({ speedUnit, showCompass }), false); }
+    catch(e){ console.error('settings save failed', e); }
+  }
+
+  async function loadSettings(){
+    try{
+      const res = await window.storage.get(SETTINGS_KEY, false);
+      if(res && res.value){
+        const data = JSON.parse(res.value);
+        if(data.speedUnit) speedUnit = data.speedUnit;
+        showCompass = !!data.showCompass;
+      }
+    } catch(e){}
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('selected', b.dataset.unit === speedUnit));
+    updateSpeedDisplay();
+    compassToggle.checked = showCompass;
+    if(showCompass){
+      compassWidget.classList.add('visible');
+      // Android's absolute-orientation event needs no permission prompt, so it's safe
+      // to resume automatically. iOS requires a fresh tap each session — the widget
+      // itself acts as that tap if it hasn't started yet.
+      if(typeof DeviceOrientationEvent === 'undefined' || typeof DeviceOrientationEvent.requestPermission !== 'function'){
+        startCompass();
+      }
+    }
+  }
+
+  // ---- Full backup (everything) to / from a downloadable file ----
+  async function exportAllData(){
+    try{
+      const activeRes = await window.storage.get(ACTIVE_KEY, false).catch(()=>null);
+      const index = await getIndex();
+      const trips = {};
+      for(const t of index){
+        try{
+          const res = await window.storage.get(TRIP_PREFIX + t.id, false);
+          trips[t.id] = JSON.parse(res.value);
+        } catch(e){}
+      }
+      const fishRes = await window.storage.get(FISH_KEY, false).catch(()=>null);
+      const settingsRes = await window.storage.get(SETTINGS_KEY, false).catch(()=>null);
+      const backup = {
+        app: 'wake-trail-tracker',
+        exportedAt: new Date().toISOString(),
+        active: activeRes && activeRes.value ? JSON.parse(activeRes.value) : null,
+        tripsIndex: index,
+        trips,
+        knownFish: fishRes && fishRes.value ? JSON.parse(fishRes.value) : [],
+        settings: settingsRes && settingsRes.value ? JSON.parse(settingsRes.value) : null
+      };
+      const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateLabel = new Date().toISOString().slice(0,10);
+      const filename = `wake-backup-${dateLabel}.json`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+      showBanner('Backup saved to your Downloads folder as ' + filename + '.');
+    } catch(e){
+      showBanner('Could not create a backup right now — try again.');
+    }
+  }
+
+  async function restoreAllData(file){
+    let data;
+    try{
+      const text = await file.text();
+      data = JSON.parse(text);
+      if(data.app !== 'wake-trail-tracker') throw new Error('not a Wake backup file');
+    } catch(e){
+      showBanner('That file doesn\'t look like a Wake backup — restore cancelled.');
+      return;
+    }
+    if(!confirm('Restore this backup? It will replace your current active trail, saved trips, fish log, and settings on this device.')) return;
+    try{
+      if(data.active) await window.storage.set(ACTIVE_KEY, JSON.stringify(data.active), false);
+      await window.storage.set(INDEX_KEY, JSON.stringify(data.tripsIndex || []), false);
+      for(const id in (data.trips || {})){
+        await window.storage.set(TRIP_PREFIX + id, JSON.stringify(data.trips[id]), false);
+      }
+      await window.storage.set(FISH_KEY, JSON.stringify(data.knownFish || []), false);
+      if(data.settings) await window.storage.set(SETTINGS_KEY, JSON.stringify(data.settings), false);
+      showBanner('Backup restored — reloading…');
+      setTimeout(()=> location.reload(), 1200);
+    } catch(e){
+      showBanner('Restore failed partway through — your data may be incomplete. Try again.');
+    }
+  }
+
+  exportAllBtn.addEventListener('click', exportAllData);
+  restoreAllBtn.addEventListener('click', ()=> restoreInput.click());
+  restoreInput.addEventListener('change', ()=>{
+    const file = restoreInput.files[0];
+    if(file) restoreAllData(file);
+    restoreInput.value = '';
+  });
+
+  unitGrid.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.unit-btn');
+    if(!btn) return;
+    speedUnit = btn.dataset.unit;
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    updateSpeedDisplay();
+    saveSettings();
+  });
+
+  function handleOrientation(e){
+    let heading = null;
+    if(typeof e.webkitCompassHeading === 'number'){
+      heading = e.webkitCompassHeading; // iOS: already true compass heading
+    } else if(e.alpha != null){
+      heading = 360 - e.alpha; // Android absolute orientation approximation
+    }
+    if(heading == null || isNaN(heading)) return;
+    heading = (heading + 360) % 360;
+    compassDial.style.transform = 'rotate(' + (-heading) + 'deg)';
+    compassDeg.textContent = Math.round(heading) + '°';
+  }
+
+  function startCompass(){
+    if(compassActive) return;
+    const attach = (eventName) => {
+      compassListenerFn = handleOrientation;
+      window.addEventListener(eventName, compassListenerFn, true);
+      compassActive = true;
+    };
+    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if(state === 'granted'){ attach('deviceorientation'); }
+        else { showBanner('Compass permission was denied — enable motion access in your browser/site settings to use it.'); }
+      }).catch(()=>{ showBanner('Could not request compass permission.'); });
+    } else if('ondeviceorientationabsolute' in window){
+      attach('deviceorientationabsolute');
+    } else if('ondeviceorientation' in window){
+      attach('deviceorientation');
+    } else {
+      showBanner('This browser/device does not expose a compass sensor.');
+    }
+  }
+
+  function stopCompass(){
+    if(compassListenerFn){
+      window.removeEventListener('deviceorientation', compassListenerFn, true);
+      window.removeEventListener('deviceorientationabsolute', compassListenerFn, true);
+      compassListenerFn = null;
+    }
+    compassActive = false;
+    compassDeg.textContent = 'tap to enable';
+  }
+
+  compassToggle.addEventListener('change', ()=>{
+    showCompass = compassToggle.checked;
+    if(showCompass){
+      compassWidget.classList.add('visible');
+      startCompass();
+    } else {
+      compassWidget.classList.remove('visible');
+      stopCompass();
+    }
+    saveSettings();
+  });
+
+  compassWidget.addEventListener('click', ()=>{
+    if(!compassActive) startCompass();
+  });
+
+  settingsBtn.addEventListener('click', ()=>{ settingsOverlay.classList.add('open'); updateStorageUsage(); });
+  closeSettingsBtn.addEventListener('click', ()=> settingsOverlay.classList.remove('open'));
+
+  async function loadExisting(){
+    try{
+      const result = await window.storage.get(ACTIVE_KEY, false);
+      if(result && result.value){
+        const data = JSON.parse(result.value);
+        points = data.points || [];
+        markers = data.markers || [];
+        startedAt = data.startedAt || null;
+        includeInCombined = data.includeInCombined !== false;
+      }
+    } catch(e){}
+
+    if(points.length){
+      initMap(points[points.length-1][0], points[points.length-1][1]);
+      redraw();
+      toggleBtn.textContent = 'Resume tracking';
+      updateTimer();
+    } else {
+      initMap(45.2269, 13.5989);
+    }
+    renderMarkers();
+    await loadKnownFish();
+    await loadSettings();
+    centerOnCurrentLocation();
+  }
+
+  function centerOnCurrentLocation(){
+    if(!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => { if(map) map.setView([pos.coords.latitude, pos.coords.longitude], 15); },
+      () => { /* no fix yet — keep whatever center initMap already picked */ },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+    );
+  }
+
+  loadExisting();
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
