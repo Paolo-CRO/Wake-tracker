@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wake-tracker-v24';
+const CACHE_NAME = 'wake-tracker-v26';
 const APP_SHELL = [
   './trail-tracker.html',
   './manifest.json',
