@@ -170,8 +170,6 @@
   #finishBtn:disabled{ opacity:0.35; }
   #exportBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
   #exportBtn:disabled{ opacity:0.35; }
-  #depthToggleBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
-  #depthToggleBtn.active{ background:var(--teal); border-color:var(--teal); }
   #zonesToggleBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
   #zonesToggleBtn.active{ background:var(--green); border-color:var(--green); }
   #routeModeBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
@@ -465,7 +463,6 @@
     <button id="toggleBtn">Start tracking</button>
     <button id="finishBtn" disabled>Finish &amp; Save Trip</button>
     <button id="exportBtn" disabled>Export GPX</button>
-    <button id="depthToggleBtn">🌊 Depth</button>
     <button id="zonesToggleBtn">🛡 Zones</button>
     <button id="routeModeBtn">🧭 Route</button>
   </div>
@@ -857,9 +854,7 @@ if(navigator.storage && navigator.storage.persist){
   const FISH_KEY = 'wake:known-fish';
 
   let map, polyline, currentMarker, depthLayer, zonesLayer;
-  let showDepth = false;
   let showZones = false;
-  let hasShownDepthDisclaimer = false;
   let hasShownZonesDisclaimer = false;
   let routeMode = false;
   let routeWaypoints = []; // [lat, lon]
@@ -959,7 +954,6 @@ if(navigator.storage && navigator.storage.persist){
   const fabSpot = document.getElementById('fabSpot');
   const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
   const recenterBtn = document.getElementById('recenterBtn');
-  const depthToggleBtn = document.getElementById('depthToggleBtn');
   const zonesToggleBtn = document.getElementById('zonesToggleBtn');
   const routeModeBtn = document.getElementById('routeModeBtn');
   const marinasBtn = document.getElementById('marinasBtn');
@@ -1089,32 +1083,19 @@ if(navigator.storage && navigator.storage.persist){
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '© OpenStreetMap'
     }).addTo(map);
-    // Seabed depth overlay — EMODnet Bathymetry: colour shading (mean_atlas_land) plus
-    // EMODnet's own contour-line sub-layer, which is the one confirmed to actually show
-    // printed depth numbers (this is what showed "50" earlier). The OpenSeaMap depth
-    // service that was briefly added here turned out to be an old/unreliable endpoint —
-    // removed rather than leave a source I can't confirm actually renders anything.
-    // Informational reference only, explicitly NOT for navigation.
-    depthLayer = L.layerGroup([
-      L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
-        layers: 'mean_atlas_land',
-        format: 'image/png',
-        transparent: true,
-        version: '1.3.0',
-        opacity: 0.55,
-        maxZoom: 19,
-        attribution: 'Bathymetry © EMODnet — not for navigation'
-      }),
-      L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
-        layers: 'contours',
-        format: 'image/png',
-        transparent: true,
-        version: '1.3.0',
-        opacity: 0.9,
-        maxZoom: 19,
-        attribution: 'Depth contours © EMODnet — not for navigation'
-      })
-    ]);
+    // Seabed depth colour shading — always on, no toggle. EMODnet Bathymetry, atlas-style
+    // colours (blue water graduating with depth, muted land tones). Informational reference
+    // only, explicitly NOT for navigation. Contour-number sub-layers were dropped — the
+    // free source only draws sparse, fixed-interval lines that weren't useful in practice.
+    depthLayer = L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
+      layers: 'mean_atlas_land',
+      format: 'image/png',
+      transparent: true,
+      version: '1.3.0',
+      opacity: 0.55,
+      maxZoom: 19,
+      attribution: 'Bathymetry © EMODnet — not for navigation'
+    }).addTo(map);
     // Marine protected areas (Natura 2000) — EU nature-protection network, free incl.
     // commercial use. Boundaries are approximate reference only, not a legal survey.
     zonesLayer = L.tileLayer.wms('https://ows.emodnet-humanactivities.eu/wms', {
@@ -1161,23 +1142,6 @@ if(navigator.storage && navigator.storage.persist){
       const last = points[points.length-1];
       map.setView([last[0], last[1]], desiredZoomForSpeed(currentSpeedMps), { animate: true });
     }
-  });
-
-  function applyDepthLayerState(){
-    if(!depthLayer || !map) return;
-    if(showDepth) depthLayer.addTo(map);
-    else map.removeLayer(depthLayer);
-    depthToggleBtn.classList.toggle('active', showDepth);
-  }
-
-  depthToggleBtn.addEventListener('click', ()=>{
-    if(!showDepth && !hasShownDepthDisclaimer){
-      hasShownDepthDisclaimer = true;
-      alert('Seabed depth shading (EMODnet). This is reference data for general awareness only — NOT an official nautical chart. Never use it for navigation; always rely on your official charts and equipment.');
-    }
-    showDepth = !showDepth;
-    applyDepthLayerState();
-    saveSettings();
   });
 
   function applyZonesLayerState(){
@@ -3502,7 +3466,7 @@ ${trkpts}
   }
 
   async function saveSettings(){
-    try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({ speedUnit, showCompass, defaultComboId, currentLang, boatProfile, fishingCountry, licenseExpiryDate, licenseSnoozedUntil, showDepth, hasShownDepthDisclaimer, showZones, hasShownZonesDisclaimer }), false); }
+    try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({ speedUnit, showCompass, defaultComboId, currentLang, boatProfile, fishingCountry, licenseExpiryDate, licenseSnoozedUntil, showZones, hasShownZonesDisclaimer }), false); }
     catch(e){ console.error('settings save failed', e); }
   }
 
@@ -3519,13 +3483,10 @@ ${trkpts}
         fishingCountry = data.fishingCountry || null;
         licenseExpiryDate = data.licenseExpiryDate || null;
         licenseSnoozedUntil = data.licenseSnoozedUntil || null;
-        showDepth = !!data.showDepth;
-        hasShownDepthDisclaimer = !!data.hasShownDepthDisclaimer;
         showZones = !!data.showZones;
         hasShownZonesDisclaimer = !!data.hasShownZonesDisclaimer;
       }
     } catch(e){}
-    applyDepthLayerState();
     applyZonesLayerState();
     boatTypeSelect.value = boatProfile.type || '';
     boatLengthInput.value = boatProfile.length != null ? boatProfile.length : '';
