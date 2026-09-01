@@ -1195,13 +1195,16 @@ if(navigator.storage && navigator.storage.persist){
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
       const point = map.latLngToContainerPoint(latlng);
+      // WMS 1.1.1 always uses lon,lat (x,y) bbox order regardless of CRS — sidesteps the
+      // well-known WMS 1.3.0 axis-order ambiguity that was almost certainly the source of
+      // the wrong depth readings seen before.
       const params = new URLSearchParams({
-        service: 'WMS', version: '1.3.0', request: 'GetFeatureInfo',
-        layers: 'mean_multicolour', query_layers: 'mean_multicolour',
-        crs: 'EPSG:4326',
-        bbox: [sw.lat, sw.lng, ne.lat, ne.lng].join(','),
+        service: 'WMS', version: '1.1.1', request: 'GetFeatureInfo',
+        layers: 'mean_atlas_land', query_layers: 'mean_atlas_land',
+        srs: 'EPSG:4326',
+        bbox: [sw.lng, sw.lat, ne.lng, ne.lat].join(','),
         width: size.x, height: size.y,
-        i: Math.round(point.x), j: Math.round(point.y),
+        x: Math.round(point.x), y: Math.round(point.y),
         info_format: 'text/plain',
         feature_count: 1
       });
@@ -1209,10 +1212,16 @@ if(navigator.storage && navigator.storage.persist){
       const res = await fetch(url);
       if(!res.ok) throw new Error('bad response');
       const text = await res.text();
+      // If the server returned an error/exception report instead of a real value, don't
+      // guess a number out of it — showing a wrong depth is worse than showing none.
+      if(/exception|error|<\?xml/i.test(text)){
+        popup.setContent('🌊 Could not read a reliable depth value here.<br><small style="color:var(--ink-soft);">Try the contour lines on the map instead.</small>');
+        return;
+      }
       const match = text.match(/-?\d+(\.\d+)?/);
       if(match){
         const depthM = Math.abs(parseFloat(match[0]));
-        popup.setContent(`🌊 ~${depthM.toFixed(0)} m deep here<br><small style="color:var(--ink-soft);">EMODnet estimate — not for navigation</small>`);
+        popup.setContent(`🌊 ~${depthM.toFixed(0)} m deep here<br><small style="color:var(--ink-soft);">EMODnet estimate — treat as approximate, not for navigation</small>`);
       } else {
         popup.setContent('🌊 No depth value here — may be on land or outside data coverage.<br><small style="color:var(--ink-soft);">Try tapping over open water.</small>');
       }
