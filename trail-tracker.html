@@ -244,7 +244,7 @@
   #emptyTrips{ text-align:center; color:var(--ink-soft); font-size:13px; padding:40px 20px; }
 
   /* Settings overlay */
-  #settingsList{ padding:16px 18px; }
+  #settingsList{ padding:16px 18px; flex:1; overflow-y:auto; min-height:0; }
   .settings-block{ margin-bottom:26px; }
   .settings-block h3{ font-size:13px; color:var(--ink-soft); margin:0 0 10px; font-weight:600; letter-spacing:0.3px; }
   .unit-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -429,22 +429,27 @@
     </div>
 
     <div id="routePanel" class="hidden">
-      <div id="routeStatus" style="font-size:12.5px;line-height:1.5;">🧭 Tap the map to add waypoints.</div>
-      <div id="routeLegsList" style="max-height:120px;overflow-y:auto;margin-top:8px;"></div>
-      <div class="weather-row" style="margin-top:8px;">
-        <label style="align-self:center;font-size:12px;color:var(--ink-soft);flex:0 0 auto;margin-right:8px;">Planned speed</label>
-        <div class="wind-input-wrap" style="flex:1;">
-          <input type="number" id="routeSpeedInput" value="6" min="0.5" step="0.5" inputmode="decimal">
-          <span>kn</span>
+      <div id="routeStatusRow" style="display:flex;align-items:center;gap:8px;">
+        <div id="routeStatus" style="font-size:12.5px;line-height:1.5;flex:1;">🧭 Tap the map to add waypoints.</div>
+        <button id="routeExpandBtn" type="button" style="flex:0 0 auto;width:auto;padding:6px 10px;font-size:12px;background:var(--ink);color:var(--paper);">Details ▲</button>
+      </div>
+      <div id="routeDetails" class="hidden">
+        <div id="routeLegsList" style="max-height:120px;overflow-y:auto;margin-top:8px;"></div>
+        <div class="weather-row" style="margin-top:8px;">
+          <label style="align-self:center;font-size:12px;color:var(--ink-soft);flex:0 0 auto;margin-right:8px;">Planned speed</label>
+          <div class="wind-input-wrap" style="flex:1;">
+            <input type="number" id="routeSpeedInput" value="6" min="0.5" step="0.5" inputmode="decimal">
+            <span>kn</span>
+          </div>
         </div>
-      </div>
-      <div class="anchor-actions" style="margin-top:10px;">
-        <button id="routeUndoBtn">Undo point</button>
-        <button id="routeClearBtn">Clear</button>
-      </div>
-      <div class="anchor-actions" style="margin-top:8px;">
-        <button id="routeSaveBtn">Save route</button>
-        <button id="routeDoneBtn">Done</button>
+        <div class="anchor-actions" style="margin-top:10px;">
+          <button id="routeUndoBtn">Undo point</button>
+          <button id="routeClearBtn">Clear</button>
+        </div>
+        <div class="anchor-actions" style="margin-top:8px;">
+          <button id="routeSaveBtn">Save route</button>
+          <button id="routeDoneBtn">Done</button>
+        </div>
       </div>
     </div>
   </div>
@@ -638,6 +643,10 @@
   <div id="tripsHeader">
     <h2>Weather forecast</h2>
     <button id="closeForecastBtn">Close</button>
+  </div>
+  <div style="padding:10px 18px 0;display:flex;gap:8px;">
+    <button id="pickForecastLocationBtn" style="flex:1;font-size:12px;padding:8px 6px;background:transparent;border:1px solid #2c4258;color:var(--paper);">📍 Choose location</button>
+    <button id="resetForecastLocationBtn" class="hidden" style="flex:1;font-size:12px;padding:8px 6px;background:transparent;border:1px solid #2c4258;color:var(--paper);">⦿ Use my location</button>
   </div>
   <div id="forecastMeta"></div>
   <div id="forecastList"></div>
@@ -843,6 +852,9 @@ if(navigator.storage && navigator.storage.persist){
   let routePolyline = null;
   let routeMarkers = [];
   let marinaLayers = [];
+  let pickingForecastLocation = false;
+  let forecastLocationOverride = null; // [lat, lon] | null (null = use live position)
+  let forecastPickMarker = null;
   let points = [];        // [lat, lon, timestamp]
   let markers = [];       // {lat, lon, ts, type, label}
   let markerLayers = [];
@@ -949,6 +961,8 @@ if(navigator.storage && navigator.storage.persist){
   const routesList = document.getElementById('routesList');
   const routePanel = document.getElementById('routePanel');
   const routeStatus = document.getElementById('routeStatus');
+  const routeExpandBtn = document.getElementById('routeExpandBtn');
+  const routeDetails = document.getElementById('routeDetails');
   const routeLegsList = document.getElementById('routeLegsList');
   const routeSpeedInput = document.getElementById('routeSpeedInput');
   const routeUndoBtn = document.getElementById('routeUndoBtn');
@@ -1034,6 +1048,8 @@ if(navigator.storage && navigator.storage.persist){
   const forecastOverlay = document.getElementById('forecastOverlay');
   const forecastMeta = document.getElementById('forecastMeta');
   const forecastList = document.getElementById('forecastList');
+  const pickForecastLocationBtn = document.getElementById('pickForecastLocationBtn');
+  const resetForecastLocationBtn = document.getElementById('resetForecastLocationBtn');
   const alertBanner = document.getElementById('alertBanner');
   const alertBannerText = document.getElementById('alertBannerText');
   const alertDetailsBtn = document.getElementById('alertDetailsBtn');
@@ -1093,6 +1109,16 @@ if(navigator.storage && navigator.storage.persist){
     });
 
     map.on('click', (e)=>{
+      if(pickingForecastLocation){
+        pickingForecastLocation = false;
+        forecastLocationOverride = [e.latlng.lat, e.latlng.lng];
+        if(forecastPickMarker){ map.removeLayer(forecastPickMarker); }
+        forecastPickMarker = L.marker(forecastLocationOverride).addTo(map);
+        resetForecastLocationBtn.classList.remove('hidden');
+        forecastOverlay.classList.add('open');
+        loadAndRenderForecast();
+        return;
+      }
       if(!routeMode) return;
       routeWaypoints.push([e.latlng.lat, e.latlng.lng]);
       redrawRoute();
@@ -1197,7 +1223,14 @@ if(navigator.storage && navigator.storage.persist){
     routeMode = !routeMode;
     routeModeBtn.classList.toggle('active', routeMode);
     routePanel.classList.toggle('hidden', !routeMode);
+    routeDetails.classList.add('hidden'); // stay collapsed so the map is free to tap
+    routeExpandBtn.textContent = 'Details ▲';
     if(routeMode) updateRoutePanel();
+  });
+
+  routeExpandBtn.addEventListener('click', ()=>{
+    const nowHidden = routeDetails.classList.toggle('hidden');
+    routeExpandBtn.textContent = nowHidden ? 'Details ▲' : 'Hide ▼';
   });
 
   routeUndoBtn.addEventListener('click', ()=>{
@@ -1291,6 +1324,8 @@ if(navigator.storage && navigator.storage.persist){
         routeMode = true;
         routeModeBtn.classList.add('active');
         routePanel.classList.remove('hidden');
+        routeDetails.classList.remove('hidden');
+        routeExpandBtn.textContent = 'Hide ▼';
       } catch(e){
         showBanner('Could not load that route.');
       }
@@ -2700,6 +2735,59 @@ if(navigator.storage && navigator.storage.persist){
     } catch(e){ return null; }
   }
 
+  // ---- Time-of-day breakdown (single source — hourly consensus across 4 models would be
+  // a lot of requests for a phone connection, so this trades that off for responsiveness) ----
+  const DAY_PERIODS = [
+    { key: 'morning', label: '🌅 Morning', startH: 6, endH: 11 },
+    { key: 'noon', label: '☀️ Noon', startH: 11, endH: 14 },
+    { key: 'afternoon', label: '🌇 Afternoon', startH: 14, endH: 19 },
+    { key: 'night', label: '🌙 Night', startH: 19, endH: 24 }
+  ];
+
+  async function fetchHourlyBreakdown(lat, lon, days){
+    try{
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,wind_speed_10m&forecast_days=${days}&wind_speed_unit=ms&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      return data.hourly || null;
+    } catch(e){ return null; }
+  }
+
+  function bucketHourlyForDate(hourly, dateStr){
+    if(!hourly || !hourly.time) return null;
+    const result = {};
+    DAY_PERIODS.forEach(p => {
+      const temps = [], precs = [], winds = [];
+      hourly.time.forEach((t, i) => {
+        if(!t.startsWith(dateStr)) return;
+        const hour = parseInt(t.slice(11,13), 10);
+        if(hour < p.startH || hour >= p.endH) return;
+        if(hourly.temperature_2m && hourly.temperature_2m[i] != null) temps.push(hourly.temperature_2m[i]);
+        if(hourly.precipitation_probability && hourly.precipitation_probability[i] != null) precs.push(hourly.precipitation_probability[i]);
+        if(hourly.wind_speed_10m && hourly.wind_speed_10m[i] != null) winds.push(hourly.wind_speed_10m[i]);
+      });
+      result[p.key] = {
+        temp: temps.length ? temps.reduce((a,b) => a+b, 0) / temps.length : null,
+        precip: precs.length ? Math.max(...precs) : null,
+        windMps: winds.length ? winds.reduce((a,b) => a+b, 0) / winds.length : null
+      };
+    });
+    return result;
+  }
+
+  function periodsRowsHtml(periods){
+    if(!periods) return '<div style="font-size:11px;color:var(--ink-soft);">Hourly detail unavailable.</div>';
+    const u = SPEED_UNITS[speedUnit] || SPEED_UNITS.knots;
+    return DAY_PERIODS.map(p => {
+      const d = periods[p.key];
+      const t = d.temp != null ? Math.round(d.temp) + '°C' : '–';
+      const pr = d.precip != null ? Math.round(d.precip) + '%' : '–';
+      const w = d.windMps != null ? (d.windMps * u.factor).toFixed(0) + ' ' + u.label : '–';
+      return `<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid #12324a;"><span>${p.label}</span><span>${t} · 💧${pr} · 💨${w}</span></div>`;
+    }).join('');
+  }
+
   async function fetchConsensusForecast(lat, lon, days){
     const dailyParam = FORECAST_DAILY_VARS.join(',');
     const modelsParam = FORECAST_MODELS.join(',');
@@ -2756,7 +2844,7 @@ if(navigator.storage && navigator.storage.persist){
     } catch(e){ return null; }
   }
 
-  function forecastDayCardHtml(d, idx, waveMap, sunMap){
+  function forecastDayCardHtml(d, idx, waveMap, sunMap, hourly){
     const date = new Date(d.date + 'T12:00:00');
     const dayLabel = idx === 0 ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
     const tMax = d.temperature_2m_max != null ? Math.round(d.temperature_2m_max) : '–';
@@ -2788,6 +2876,8 @@ if(navigator.storage && navigator.storage.persist){
       }
     }
 
+    const periods = bucketHourlyForDate(hourly, d.date);
+
     return `<div class="forecast-day">
       <div class="forecast-day-row">
         <div class="forecast-day-label">${dayLabel}</div>
@@ -2796,6 +2886,8 @@ if(navigator.storage && navigator.storage.persist){
         <div class="forecast-models">${modelCount || 1} model${modelCount===1?'':'s'}</div>
       </div>
       ${advisoryHtml}
+      <button class="day-periods-toggle" data-date="${d.date}" type="button" style="width:100%;margin-top:8px;background:transparent;border:1px solid #2c4258;color:var(--paper);font-size:11.5px;padding:6px;">Times of day ▾</button>
+      <div class="day-periods hidden" data-date="${d.date}" style="margin-top:6px;">${periodsRowsHtml(periods)}</div>
     </div>`;
   }
 
@@ -2814,7 +2906,16 @@ if(navigator.storage && navigator.storage.persist){
   async function loadAndRenderForecast(){
     forecastList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 20px;font-size:13px;">Checking several weather models…</div>';
     forecastMeta.textContent = '';
-    getBestKnownCoords(async (coords) => {
+    resetForecastLocationBtn.classList.toggle('hidden', !forecastLocationOverride);
+
+    const useCoords = (coords) => runForecast(coords);
+    if(forecastLocationOverride){
+      useCoords(forecastLocationOverride);
+    } else {
+      getBestKnownCoords(useCoords);
+    }
+
+    async function runForecast(coords){
       if(!coords){
         forecastList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 20px;font-size:13px;">Could not get a location for the forecast.</div>';
         return;
@@ -2822,8 +2923,12 @@ if(navigator.storage && navigator.storage.persist){
       const result = await fetchConsensusForecast(coords[0], coords[1], 7);
       const waveMap = await fetchWaveForecast(coords[0], coords[1], 7);
       const sunMap = await fetchSunTimes(coords[0], coords[1], 7);
+      const hourly = await fetchHourlyBreakdown(coords[0], coords[1], 7);
       const alerts = await fetchWeatherAlerts();
       lastAlertList = alerts !== null ? alerts : lastAlertList;
+      if(forecastLocationOverride){
+        forecastMeta.textContent = `📍 Showing forecast for ${coords[0].toFixed(4)}, ${coords[1].toFixed(4)} — not your current position.`;
+      }
       let warningsHtml = '';
       if(alerts === null){
         warningsHtml = `<div class="warning-card"><div class="warning-meta">Could not check official weather warnings just now. <a href="https://meteoalarm.org/en/live/region/HR" target="_blank" rel="noopener" style="color:var(--teal);">Check the official site →</a></div></div>`;
@@ -2846,19 +2951,19 @@ if(navigator.storage && navigator.storage.persist){
       const disclaimerHtml = (boatProfile && boatProfile.type)
         ? `<div class="advisory-disclaimer">⚠️ The Good/Caution/Stay-in reads below are this app's own rough estimate — <b>not an official maritime forecast or safety authority.</b> They don't know your boat's real condition, your experience, or local conditions. Always weigh them against the official warnings above and your own judgment — if in doubt, don't go out.</div>`
         : '';
-      forecastList.innerHTML = disclaimerHtml + warningsHtml + result.days.map((d, i) => forecastDayCardHtml(d, i, waveMap, sunMap)).join('');
+      forecastList.innerHTML = disclaimerHtml + warningsHtml + result.days.map((d, i) => forecastDayCardHtml(d, i, waveMap, sunMap, hourly)).join('');
       if(result.consensus){
         const names = result.modelsUsed.map(m => MODEL_FRIENDLY_NAMES[m] || m).join(', ');
-        forecastMeta.textContent = `Median of ${result.modelsUsed.length} independent models: ${names}. The "N models" tag on each day shows how many actually agreed to give that figure.`;
+        forecastMeta.textContent += ` Median of ${result.modelsUsed.length} independent models: ${names}. The "N models" tag on each day shows how many actually agreed to give that figure.`;
       } else {
-        forecastMeta.textContent = 'Multi-model comparison wasn\'t available — showing a single best-match forecast instead.';
+        forecastMeta.textContent += ' Multi-model comparison wasn\'t available — showing a single best-match forecast instead.';
       }
       if(!boatProfile || !boatProfile.type){
         forecastMeta.textContent += ' Set up "My Boat" in Settings for a personalized go/no-go read on each day.';
       } else if(!waveMap){
         forecastMeta.textContent += ' Wave data wasn\'t available this time, so advisories below are based on wind only.';
       }
-    });
+    }
   }
 
   // ---- Official weather warnings (MeteoAlarm — aggregates national weather services,
@@ -2998,11 +3103,32 @@ if(navigator.storage && navigator.storage.persist){
   checkAndShowAlertBanner();
   setInterval(checkAndShowAlertBanner, 20 * 60 * 1000); // recheck every 20 minutes while the app is open
 
+  forecastList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.day-periods-toggle');
+    if(!btn) return;
+    const panel = forecastList.querySelector(`.day-periods[data-date="${btn.dataset.date}"]`);
+    if(!panel) return;
+    const nowHidden = panel.classList.toggle('hidden');
+    btn.textContent = nowHidden ? 'Times of day ▾' : 'Times of day ▴';
+  });
+
   forecastBtn.addEventListener('click', ()=>{
     forecastOverlay.classList.add('open');
     loadAndRenderForecast();
   });
   closeForecastBtn.addEventListener('click', ()=> forecastOverlay.classList.remove('open'));
+
+  pickForecastLocationBtn.addEventListener('click', ()=>{
+    pickingForecastLocation = true;
+    forecastOverlay.classList.remove('open');
+    showBanner('Tap anywhere on the map to see the forecast for that spot.');
+  });
+  resetForecastLocationBtn.addEventListener('click', ()=>{
+    forecastLocationOverride = null;
+    resetForecastLocationBtn.classList.add('hidden');
+    if(forecastPickMarker){ map.removeLayer(forecastPickMarker); forecastPickMarker = null; }
+    loadAndRenderForecast();
+  });
 
   // Average speed reconstructed from position history over the last N minutes — used for
   // trolling speed, since by the time you've stopped the boat and opened this form, the
