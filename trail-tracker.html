@@ -222,8 +222,8 @@
   #licenseRenewOverlay.open{ display:flex; }
   #licenseRenewModal{ width:88%; max-width:340px; background:var(--navy); border-radius:14px; padding:18px; }
   #licenseRenewModal h2{ font-size:16px; margin:0; }
-  #tripsOverlay, #settingsOverlay, #fishLogOverlay, #forecastOverlay, #alertsOverlay, #regulationsOverlay, #statsOverlay, #marinasOverlay, #routesListOverlay{ position:fixed; inset:0; background:rgba(7,23,38,0.92); display:none; flex-direction:column; z-index:1000; }
-  #tripsOverlay.open, #settingsOverlay.open, #fishLogOverlay.open, #forecastOverlay.open, #alertsOverlay.open, #regulationsOverlay.open, #statsOverlay.open, #marinasOverlay.open, #routesListOverlay.open{ display:flex; }
+  #tripsOverlay, #settingsOverlay, #fishLogOverlay, #forecastOverlay, #alertsOverlay, #regulationsOverlay, #statsOverlay, #marinasOverlay, #routesListOverlay, #allSpotsOverlay{ position:fixed; inset:0; background:rgba(7,23,38,0.92); display:none; flex-direction:column; z-index:1000; }
+  #tripsOverlay.open, #settingsOverlay.open, #fishLogOverlay.open, #forecastOverlay.open, #alertsOverlay.open, #regulationsOverlay.open, #statsOverlay.open, #marinasOverlay.open, #routesListOverlay.open, #allSpotsOverlay.open{ display:flex; }
   .warning-card{ border-radius:12px; padding:12px 14px; margin-bottom:10px; border:1px solid; background:var(--navy); }
   .warning-card.severe{ border-color:var(--rust); }
   .warning-card.moderate{ border-color:var(--amber); }
@@ -481,6 +481,7 @@
     <button id="statsBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">📊 View statistics</button>
     <button id="marinasBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">⚓ Nearby marinas</button>
     <button id="routesListBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">🧭 Planned routes</button>
+    <button id="allSpotsBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">📍 All marked points</button>
   </div>
   <div id="tripsList"></div>
 </div>
@@ -639,6 +640,24 @@
   <div id="routesList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
 </div>
 
+<div id="allSpotsOverlay">
+  <div id="tripsHeader">
+    <h2>All marked points</h2>
+    <button id="closeAllSpotsBtn">Close</button>
+  </div>
+  <div style="padding:10px 18px 0;">
+    <select id="allSpotsFilter" class="gear-select" style="margin-top:0;">
+      <option value="">All types</option>
+      <option value="ascending">↑ Ascending</option>
+      <option value="descending">↓ Descending</option>
+      <option value="fish">🐟 Fish</option>
+      <option value="catch">🪝 Catch</option>
+      <option value="other">✎ Other</option>
+    </select>
+  </div>
+  <div id="allSpotsList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
+</div>
+
 <div id="forecastOverlay">
   <div id="tripsHeader">
     <h2>Weather forecast</h2>
@@ -669,16 +688,11 @@
     <h2>Save this spot</h2>
     <div class="spot-sub" id="spotCoords">Getting position…</div>
 
-    <button type="button" id="voiceRecordBtn" style="width:100%;background:var(--ink);color:var(--paper);border:1px dashed #3a5165;margin-bottom:10px;">🎙 Speak a note</button>
-    <div id="voiceNotePreviewWrap" class="hidden" style="margin-bottom:10px;">
-      <textarea id="voiceNoteTextArea" rows="3" style="width:100%;background:var(--navy-deep);border:1px solid #2c4258;color:var(--paper);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;" placeholder="Transcribed text appears here — edit anything it got wrong"></textarea>
-      <button type="button" id="voiceNoteRemove" style="margin-top:6px;width:100%;background:transparent;border:1px solid var(--rust-dim);color:#e08d80;">Remove note</button>
-    </div>
-
     <div class="type-grid">
       <button class="type-btn" data-type="ascending">↑ Ascending<br><small>depth getting shallower</small></button>
       <button class="type-btn" data-type="descending">↓ Descending<br><small>depth getting deeper</small></button>
-      <button class="type-btn" data-type="fish">🐟 Fish</button>
+      <button class="type-btn" data-type="fish">🐟 Fish (just mark)</button>
+      <button class="type-btn" data-type="catch">🪝 Catch (log details)</button>
       <button class="type-btn" data-type="other">✎ Other</button>
     </div>
 
@@ -691,7 +705,7 @@
           <input type="number" id="depthTo" placeholder="To" inputmode="decimal">
         </div>
       </div>
-      <div id="fieldsFish" class="hidden">
+      <div id="fieldsCatch" class="hidden">
         <label>Fish (type new, or pick a saved one)</label>
         <input type="text" id="fishInput" list="fishHistory" placeholder="e.g. Sea bass" autocomplete="off">
         <datalist id="fishHistory"></datalist>
@@ -898,9 +912,6 @@ if(navigator.storage && navigator.storage.persist){
   let boatProfile = { type: '', length: null, engineType: '', enginePower: null };
   let fishingCountry = null;
   let pendingGearPhotoTarget = null;
-  let pendingVoiceNoteText = '';
-  let recognition = null;
-  let recognizing = false;
 
   const toggleBtn = document.getElementById('toggleBtn');
   const finishBtn = document.getElementById('finishBtn');
@@ -959,6 +970,11 @@ if(navigator.storage && navigator.storage.persist){
   const closeRoutesListBtn = document.getElementById('closeRoutesListBtn');
   const routesListOverlay = document.getElementById('routesListOverlay');
   const routesList = document.getElementById('routesList');
+  const allSpotsBtn = document.getElementById('allSpotsBtn');
+  const closeAllSpotsBtn = document.getElementById('closeAllSpotsBtn');
+  const allSpotsOverlay = document.getElementById('allSpotsOverlay');
+  const allSpotsFilter = document.getElementById('allSpotsFilter');
+  const allSpotsList = document.getElementById('allSpotsList');
   const routePanel = document.getElementById('routePanel');
   const routeStatus = document.getElementById('routeStatus');
   const routeExpandBtn = document.getElementById('routeExpandBtn');
@@ -984,7 +1000,7 @@ if(navigator.storage && navigator.storage.persist){
   const spotCancel = document.getElementById('spotCancel');
   const spotSave = document.getElementById('spotSave');
   const fieldsDepth = document.getElementById('fieldsDepth');
-  const fieldsFish = document.getElementById('fieldsFish');
+  const fieldsCatch = document.getElementById('fieldsCatch');
   const fieldsOther = document.getElementById('fieldsOther');
   const depthFrom = document.getElementById('depthFrom');
   const depthTo = document.getElementById('depthTo');
@@ -1032,10 +1048,6 @@ if(navigator.storage && navigator.storage.persist){
   const enginePowerInput = document.getElementById('enginePowerInput');
   const fishingCountrySelect = document.getElementById('fishingCountrySelect');
   const licenseExpiryInput = document.getElementById('licenseExpiryInput');
-  const voiceRecordBtn = document.getElementById('voiceRecordBtn');
-  const voiceNotePreviewWrap = document.getElementById('voiceNotePreviewWrap');
-  const voiceNoteTextArea = document.getElementById('voiceNoteTextArea');
-  const voiceNoteRemove = document.getElementById('voiceNoteRemove');
 
   const fishLogBtn = document.getElementById('fishLogBtn');
   const closeFishLogBtn = document.getElementById('closeFishLogBtn');
@@ -1339,6 +1351,92 @@ if(navigator.storage && navigator.storage.persist){
   });
   closeRoutesListBtn.addEventListener('click', ()=> routesListOverlay.classList.remove('open'));
 
+  // ---- All marked points — every spot ever saved, any type, across all trips ----
+  const ALL_SPOTS_TYPE_LABEL = { ascending:'↑ Ascending', descending:'↓ Descending', fish:'🐟 Fish', catch:'🪝 Catch', other:'✎ Other' };
+
+  async function collectAllMarkers(){
+    const results = [];
+    markers.forEach(m => results.push({ ...m, sourceTripId: 'active', tripName: 'Current trip' }));
+    const index = await getIndex();
+    for(const t of index){
+      try{
+        const res = await window.storage.get(TRIP_PREFIX + t.id, false);
+        const data = JSON.parse(res.value);
+        (data.markers || []).forEach(m => results.push({ ...m, sourceTripId: t.id, tripName: t.name }));
+      } catch(e){}
+    }
+    results.sort((a, b) => b.ts - a.ts);
+    return results;
+  }
+
+  async function renderAllSpotsList(){
+    allSpotsList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Loading…</div>';
+    const all = await collectAllMarkers();
+    const filterType = allSpotsFilter.value;
+    const filtered = filterType ? all.filter(m => m.type === filterType) : all;
+    if(filtered.length === 0){
+      allSpotsList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">No marked points yet.</div>';
+      return;
+    }
+    allSpotsList.innerHTML = filtered.map(m => `
+      <div class="trip-card">
+        <div class="trip-title">${ALL_SPOTS_TYPE_LABEL[m.type] || m.type} — ${m.label}</div>
+        <div class="trip-meta">${new Date(m.ts).toLocaleDateString()} ${new Date(m.ts).toLocaleTimeString()} · ${m.tripName}</div>
+        <div class="trip-actions">
+          <button class="btn-view" data-act="view" data-key="${markerKey(m)}" data-trip="${m.sourceTripId}">View on map</button>
+          <button class="btn-del" data-act="del" data-key="${markerKey(m)}" data-trip="${m.sourceTripId}">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  allSpotsFilter.addEventListener('change', renderAllSpotsList);
+
+  allSpotsList.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const key = btn.dataset.key, tripId = btn.dataset.trip, act = btn.dataset.act;
+    if(act === 'del'){
+      if(!confirm('Delete this marked point? This cannot be undone.')) return;
+      const ok = await deleteMarkerEverywhere(tripId, isNaN(key) ? key : Number(key));
+      if(ok){ showBanner('Deleted.'); renderAllSpotsList(); }
+      else showBanner('Could not delete — try again.');
+      return;
+    }
+    if(act === 'view'){
+      allSpotsOverlay.classList.remove('open');
+      if(tripId === 'active'){
+        const m = markers.find(mk => String(markerKey(mk)) === key);
+        if(m){ map.setView([m.lat, m.lon], 16); }
+      } else {
+        try{
+          const res = await window.storage.get(TRIP_PREFIX + tripId, false);
+          const data = JSON.parse(res.value);
+          polyline.setLatLngs((data.points || []).map(p => [p[0], p[1]]));
+          markerLayers.forEach(l => map.removeLayer(l));
+          markerLayers = [];
+          (data.markers || []).forEach(mk => {
+            const layer = makeMarkerLayer(mk, tripId);
+            layer.addTo(map);
+            markerLayers.push(layer);
+          });
+          const target = (data.markers || []).find(mk => String(markerKey(mk)) === key);
+          if(target){ map.setView([target.lat, target.lon], 16); }
+          showBanner('Viewing saved trip: ' + data.name + '. Start tracking to resume your live trail (this preview will be replaced).');
+        } catch(e){
+          showBanner('Could not load that trip.');
+        }
+      }
+    }
+  });
+
+  allSpotsBtn.addEventListener('click', ()=>{
+    tripsOverlay.classList.remove('open');
+    allSpotsOverlay.classList.add('open');
+    renderAllSpotsList();
+  });
+  closeAllSpotsBtn.addEventListener('click', ()=> allSpotsOverlay.classList.remove('open'));
+
   // ---- Nearby marinas (OpenStreetMap via Overpass API) ----
   function clearMarinaMarkers(){
     marinaLayers.forEach(l => map.removeLayer(l));
@@ -1449,8 +1547,8 @@ if(navigator.storage && navigator.storage.persist){
     return d;
   }
 
-  const MARKER_COLORS = { ascending:'#2C7873', descending:'#C8442E', fish:'#4C9A5B', other:'#9AA5B1' };
-  const MARKER_SYMBOL = { ascending:'↑', descending:'↓', fish:'🐟', other:'✎' };
+  const MARKER_COLORS = { ascending:'#C8442E', descending:'#D89A3E', fish:'#4C9A5B', catch:'#2C7873', other:'#9AA5B1' };
+  const MARKER_SYMBOL = { ascending:'↑', descending:'↓', fish:'🐟', catch:'🪝', other:'✎' };
 
   function bearingDeg(lat1, lon1, lat2, lon2){
     const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
@@ -1634,16 +1732,43 @@ if(navigator.storage && navigator.storage.persist){
 
   function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  function makeMarkerLayer(m){
+  function markerKey(m){ return m.id || m.ts; }
+
+  async function deleteMarkerEverywhere(sourceTripId, key){
+    if(sourceTripId === 'active'){
+      markers = markers.filter(m => markerKey(m) !== key);
+      renderMarkers();
+      await persistActive();
+      return true;
+    }
+    try{
+      const res = await window.storage.get(TRIP_PREFIX + sourceTripId, false);
+      const data = JSON.parse(res.value);
+      data.markers = (data.markers || []).filter(m => markerKey(m) !== key);
+      await window.storage.set(TRIP_PREFIX + sourceTripId, JSON.stringify(data), false);
+      return true;
+    } catch(e){ return false; }
+  }
+
+  function smallSymbolIcon(symbol, color){
+    return L.divIcon({
+      html: `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:2px solid #ECE6D6;display:flex;align-items:center;justify-content:center;font-size:12px;">${symbol}</div>`,
+      className: '', iconSize: [22,22], iconAnchor: [11,11]
+    });
+  }
+
+  function makeMarkerLayer(m, sourceTripId){
     const popup = `<b>${MARKER_SYMBOL[m.type] || ''} ${m.label}</b>` +
       (typeof m.heading === 'number' ? `<br><small>Heading ~${Math.round(m.heading)}°</small>` : '') +
       `<br><small>${new Date(m.ts).toLocaleTimeString()}</small>` +
-      (m.type === 'fish' ? fishExtrasLine(m) : '') +
+      (m.type === 'catch' ? fishExtrasLine(m) : '') +
       (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '') +
-      (m.voiceNote ? `<br><small>🎙 "${escHtml(m.voiceNote)}"</small>` : '');
+      `<br><button class="marker-del-btn" type="button" style="margin-top:8px;background:transparent;border:1px solid var(--rust-dim);color:#e08d80;font-size:11px;padding:6px 10px;border-radius:6px;">🗑 Delete this entry</button>`;
     let layer;
     if((m.type === 'ascending' || m.type === 'descending') && typeof m.heading === 'number'){
       layer = L.marker([m.lat, m.lon], { icon: arrowIcon(MARKER_COLORS[m.type], m.heading) });
+    } else if(m.type === 'fish' || m.type === 'catch'){
+      layer = L.marker([m.lat, m.lon], { icon: smallSymbolIcon(MARKER_SYMBOL[m.type], MARKER_COLORS[m.type]) });
     } else {
       layer = L.circleMarker([m.lat, m.lon], {
         radius: 8, color: '#ECE6D6', weight: 2,
@@ -1651,6 +1776,23 @@ if(navigator.storage && navigator.storage.persist){
       });
     }
     layer.bindPopup(popup);
+    layer.on('popupopen', (e) => {
+      const el = e.popup.getElement();
+      const btn = el && el.querySelector('.marker-del-btn');
+      if(!btn) return;
+      btn.onclick = async () => {
+        const label = m.type === 'catch' ? 'catch' : (m.type === 'fish' ? 'fish sighting' : 'spot');
+        if(!confirm(`Delete this ${label} (${m.label})? This cannot be undone.`)) return;
+        const ok = await deleteMarkerEverywhere(sourceTripId || 'active', markerKey(m));
+        if(ok){
+          map.closePopup();
+          if(sourceTripId && sourceTripId !== 'active'){ map.removeLayer(layer); }
+          showBanner('Deleted.');
+        } else {
+          showBanner('Could not delete — try again.');
+        }
+      };
+    });
     return layer;
   }
 
@@ -1658,7 +1800,7 @@ if(navigator.storage && navigator.storage.persist){
     markerLayers.forEach(l => map.removeLayer(l));
     markerLayers = [];
     markers.forEach(m => {
-      const layer = makeMarkerLayer(m);
+      const layer = makeMarkerLayer(m, 'active');
       layer.addTo(map);
       markerLayers.push(layer);
     });
@@ -1821,7 +1963,7 @@ if(navigator.storage && navigator.storage.persist){
     selectedType = null;
     document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
     fieldsDepth.classList.add('hidden');
-    fieldsFish.classList.add('hidden');
+    fieldsCatch.classList.add('hidden');
     fieldsOther.classList.add('hidden');
     depthFrom.value = ''; depthTo.value = ''; fishInput.value = ''; otherInput.value = '';
     fishRegNote.textContent = '';
@@ -1840,10 +1982,6 @@ if(navigator.storage && navigator.storage.persist){
     pendingTideInfo = null;
     tideDisplay.textContent = 'Tide: —';
     populateGearComboSelect();
-    if(recognizing) stopVoiceRecognition();
-    pendingVoiceNoteText = '';
-    voiceNoteTextArea.value = '';
-    voiceNotePreviewWrap.classList.add('hidden');
     spotSave.disabled = true;
   }
 
@@ -1895,96 +2033,6 @@ if(navigator.storage && navigator.storage.persist){
     fishPhotoPreviewWrap.classList.add('hidden');
   });
 
-  // ---- Voice notes — speech-to-text, hands-free while driving the boat ----
-  const RECOGNITION_LANG = { en: 'en-US', hr: 'hr-HR', zh: 'zh-CN', hi: 'hi-IN', es: 'es-ES', ar: 'ar-SA' };
-
-  function getSpeechRecognitionCtor(){
-    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  }
-
-  function startVoiceRecognition(){
-    const SR = getSpeechRecognitionCtor();
-    if(!SR){
-      showBanner('Speech-to-text isn\'t supported on this browser/device — try typing the note instead in a future version.');
-      return;
-    }
-    voiceNotePreviewWrap.classList.remove('hidden');
-    let finalTranscript = voiceNoteTextArea.value ? voiceNoteTextArea.value.trim() + ' ' : '';
-    recognition = new SR();
-    recognition.lang = RECOGNITION_LANG[currentLang] || 'en-US';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (event) => {
-      let interim = '';
-      for(let i = event.resultIndex; i < event.results.length; i++){
-        const transcript = event.results[i][0].transcript;
-        if(event.results[i].isFinal) finalTranscript += transcript + ' ';
-        else interim += transcript;
-      }
-      voiceNoteTextArea.value = (finalTranscript + interim).trim();
-      pendingVoiceNoteText = voiceNoteTextArea.value;
-    };
-    recognition.onerror = (e) => {
-      if(e.error !== 'no-speech') showBanner('Voice recognition error: ' + e.error);
-    };
-    recognition.onend = () => {
-      recognizing = false;
-      voiceRecordBtn.textContent = '🎙 Speak a note';
-      voiceRecordBtn.style.background = 'var(--ink)';
-      parseVoiceForSpotFields(pendingVoiceNoteText);
-    };
-    try{
-      recognition.start();
-      recognizing = true;
-      voiceRecordBtn.textContent = '⏹ Stop listening';
-      voiceRecordBtn.style.background = 'var(--rust)';
-    } catch(e){
-      showBanner('Could not start listening — check microphone permission.');
-    }
-  }
-
-  function stopVoiceRecognition(){
-    if(recognition && recognizing) recognition.stop();
-  }
-
-  voiceRecordBtn.addEventListener('click', ()=>{
-    if(recognizing) stopVoiceRecognition();
-    else startVoiceRecognition();
-  });
-
-  voiceNoteTextArea.addEventListener('input', ()=>{
-    pendingVoiceNoteText = voiceNoteTextArea.value;
-  });
-
-  voiceNoteRemove.addEventListener('click', ()=>{
-    pendingVoiceNoteText = '';
-    voiceNoteTextArea.value = '';
-    voiceNotePreviewWrap.classList.add('hidden');
-  });
-
-  // Listens for a type word ("descending", "ascending", "fish") plus a depth range
-  // ("fifty to sixty", "50-60") and fills the form the way tapping through it would —
-  // so you can just say what you saw on the sonar instead of typing it.
-  function parseVoiceForSpotFields(text){
-    if(!text) return;
-    const lower = text.toLowerCase();
-    const numberMatches = lower.match(/\d+(\.\d+)?/g);
-    const isDescending = /(descend|deeper|drop|dropp?ed|sink|going down)/.test(lower);
-    const isAscending = !isDescending && /(ascend|shallow|rising|rose|climb|coming up)/.test(lower);
-    const isFish = /(fish|caught|catch|landed)/.test(lower);
-
-    if((isDescending || isAscending) && numberMatches && numberMatches.length >= 2){
-      selectSpotType(isDescending ? 'descending' : 'ascending');
-      depthFrom.value = numberMatches[0];
-      depthTo.value = numberMatches[1];
-      validateSpotForm();
-      showBanner('Filled in from what you said — check the numbers before saving.');
-    } else if(isFish && !selectedType){
-      selectSpotType('fish');
-      showBanner('Set to Fish from what you said — type the species and check the details.');
-    }
-  }
-
   function headingSuffix(){
     const h = computeHeading();
     pendingHeading = h;
@@ -2035,7 +2083,6 @@ if(navigator.storage && navigator.storage.persist){
   }
 
   function closeSpotModal(){
-    if(recognizing) stopVoiceRecognition();
     spotOverlay.classList.remove('open');
   }
 
@@ -2043,20 +2090,23 @@ if(navigator.storage && navigator.storage.persist){
     selectedType = type;
     document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === type));
     fieldsDepth.classList.toggle('hidden', !(selectedType === 'ascending' || selectedType === 'descending'));
-    fieldsFish.classList.toggle('hidden', selectedType !== 'fish');
+    fieldsCatch.classList.toggle('hidden', selectedType !== 'catch');
     fieldsOther.classList.toggle('hidden', selectedType !== 'other');
     validateSpotForm();
   }
 
   document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.addEventListener('click', ()=> selectSpotType(btn.dataset.type));
+    btn.addEventListener('click', ()=>{
+      selectSpotType(btn.dataset.type);
+      if(btn.dataset.type === 'fish') performSpotSave(); // just a position mark — no fields to fill, save right away
+    });
   });
 
   function validateSpotForm(){
     let ok = !!selectedType;
     if(selectedType === 'ascending' || selectedType === 'descending'){
       ok = ok && depthFrom.value !== '' && depthTo.value !== '';
-    } else if(selectedType === 'fish'){
+    } else if(selectedType === 'catch'){
       ok = ok && fishInput.value.trim() !== '';
     } else if(selectedType === 'other'){
       ok = ok && otherInput.value.trim() !== '';
@@ -2101,13 +2151,13 @@ if(navigator.storage && navigator.storage.persist){
 
   async function collectFishLocations(species){
     const results = [];
-    markers.forEach(m => { if(m.type === 'fish' && m.label === species) results.push(m); });
+    markers.forEach(m => { if(m.type === 'catch' && m.label === species) results.push({ ...m, sourceTripId: 'active' }); });
     const index = await getIndex();
     for(const t of index){
       try{
         const res = await window.storage.get(TRIP_PREFIX + t.id, false);
         const data = JSON.parse(res.value);
-        (data.markers || []).forEach(m => { if(m.type === 'fish' && m.label === species) results.push(m); });
+        (data.markers || []).forEach(m => { if(m.type === 'catch' && m.label === species) results.push({ ...m, sourceTripId: t.id }); });
       } catch(e){}
     }
     return results;
@@ -2174,8 +2224,26 @@ if(navigator.storage && navigator.storage.persist){
     clearFishHighlights();
     locations.forEach(m => {
       const popup = `<b>🐟 ${species}</b><br><small>${new Date(m.ts).toLocaleDateString()} ${new Date(m.ts).toLocaleTimeString()}</small>` +
-        (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '');
+        (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '') +
+        `<br><button class="marker-del-btn" type="button" style="margin-top:8px;background:transparent;border:1px solid var(--rust-dim);color:#e08d80;font-size:11px;padding:6px 10px;border-radius:6px;">🗑 Delete this entry</button>`;
       const layer = L.marker([m.lat, m.lon], { icon: fishHighlightIcon() }).bindPopup(popup);
+      layer.on('popupopen', (e) => {
+        const el = e.popup.getElement();
+        const btn = el && el.querySelector('.marker-del-btn');
+        if(!btn) return;
+        btn.onclick = async () => {
+          if(!confirm(`Delete this catch (${species}, ${new Date(m.ts).toLocaleDateString()})? This cannot be undone.`)) return;
+          const ok = await deleteMarkerEverywhere(m.sourceTripId, markerKey(m));
+          if(ok){
+            map.closePopup();
+            map.removeLayer(layer);
+            fishHighlightLayers = fishHighlightLayers.filter(l => l !== layer);
+            showBanner('Deleted.');
+          } else {
+            showBanner('Could not delete — try again.');
+          }
+        };
+      });
       layer.addTo(map);
       fishHighlightLayers.push(layer);
     });
@@ -2482,7 +2550,7 @@ if(navigator.storage && navigator.storage.persist){
 
     const tallyMarkers = (mks) => {
       (mks || []).forEach(m => {
-        if(m.type !== 'fish') return;
+        if(m.type !== 'catch') return;
         totalFish++;
         const species = m.label || 'Unknown';
         fishCounts[species] = (fishCounts[species] || 0) + 1;
@@ -3178,13 +3246,15 @@ if(navigator.storage && navigator.storage.persist){
   fabSpot.addEventListener('click', ()=> openSpotModal());
   spotCancel.addEventListener('click', ()=>{ spotFromAnchor = false; closeSpotModal(); });
 
-  spotSave.addEventListener('click', async ()=>{
+  async function performSpotSave(){
     if(!pendingSpotCoords){ showBanner('Still waiting on a GPS fix — try again in a moment.'); return; }
     let label = '';
     let extraFields = {};
     if(selectedType === 'ascending' || selectedType === 'descending'){
       label = `${depthFrom.value}m → ${depthTo.value}m`;
     } else if(selectedType === 'fish'){
+      label = 'Fish';
+    } else if(selectedType === 'catch'){
       label = fishInput.value.trim();
       await rememberFish(label);
       const combo = gearComboSelect.value ? gearCombos.find(c => c.id === gearComboSelect.value) : null;
@@ -3205,16 +3275,17 @@ if(navigator.storage && navigator.storage.persist){
       label = otherInput.value.trim();
     }
     markers.push({
+      id: 'spot_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
       lat: pendingSpotCoords[0], lon: pendingSpotCoords[1], ts: Date.now(), type: selectedType, label,
-      heading: pendingHeading, photo: (selectedType === 'fish' ? pendingPhotoDataUrl : null),
-      voiceNote: pendingVoiceNoteText ? pendingVoiceNoteText.trim() : null,
+      heading: pendingHeading, photo: (selectedType === 'catch' ? pendingPhotoDataUrl : null),
       ...extraFields
     });
     renderMarkers();
     await persistActive();
     closeSpotModal();
     if(spotFromAnchor){ spotFromAnchor = false; dismissAnchor(); }
-  });
+  }
+  spotSave.addEventListener('click', performSpotSave);
 
   // ---- GPX export ----
   function pointsToGPX(pts, mks, name){
@@ -3236,7 +3307,6 @@ if(navigator.storage && navigator.storage.persist){
       if(m.tideDetail) bits.push('Tide: ' + m.tideDetail);
       else if(m.tide) bits.push('Tide: ' + m.tide);
       if(typeof m.windSpeed === 'number') bits.push('Wind: ' + m.windSpeed + ' ' + (m.windSpeedUnit || ''));
-      if(m.voiceNote) bits.push('Note: ' + m.voiceNote);
       const cmt = bits.length ? `<cmt>${esc(bits.join(' · '))}</cmt>` : '';
       return `  <wpt lat="${m.lat}" lon="${m.lon}"><time>${iso}</time><name>${esc(m.label)}</name><type>${esc(m.type)}</type>${cmt}</wpt>`;
     }).join('\n');
@@ -3375,7 +3445,7 @@ ${trkpts}
         markerLayers.forEach(l => map.removeLayer(l));
         markerLayers = [];
         savedMarkers.forEach(m => {
-          const layer = makeMarkerLayer(m);
+          const layer = makeMarkerLayer(m, id);
           layer.addTo(map);
           markerLayers.push(layer);
         });
