@@ -1089,11 +1089,12 @@ if(navigator.storage && navigator.storage.persist){
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '© OpenStreetMap'
     }).addTo(map);
-    // Seabed depth overlay — combines two free sources:
-    // 1) EMODnet Bathymetry: smooth colour shading (shallow=warm, deep=cool).
-    // 2) OpenSeaMap: pre-rendered depth-contour lines with the actual numbers printed
-    //    right on the tiles, same as a real chart — no tapping needed to read them.
-    // Both are informational reference only, explicitly NOT for navigation.
+    // Seabed depth overlay — EMODnet Bathymetry: colour shading (mean_atlas_land) plus
+    // EMODnet's own contour-line sub-layer, which is the one confirmed to actually show
+    // printed depth numbers (this is what showed "50" earlier). The OpenSeaMap depth
+    // service that was briefly added here turned out to be an old/unreliable endpoint —
+    // removed rather than leave a source I can't confirm actually renders anything.
+    // Informational reference only, explicitly NOT for navigation.
     depthLayer = L.layerGroup([
       L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
         layers: 'mean_atlas_land',
@@ -1104,14 +1105,14 @@ if(navigator.storage && navigator.storage.persist){
         maxZoom: 19,
         attribution: 'Bathymetry © EMODnet — not for navigation'
       }),
-      L.tileLayer.wms('https://depth.openseamap.org/cgi-bin/mapserv.fcgi', {
-        layers: 'contour,contour2',
+      L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
+        layers: 'contours',
         format: 'image/png',
         transparent: true,
-        version: '1.1.1',
+        version: '1.3.0',
         opacity: 0.9,
         maxZoom: 19,
-        attribution: 'Depth contours © OpenSeaMap contributors — not for navigation'
+        attribution: 'Depth contours © EMODnet — not for navigation'
       })
     ]);
     // Marine protected areas (Natura 2000) — EU nature-protection network, free incl.
@@ -1150,9 +1151,6 @@ if(navigator.storage && navigator.storage.persist){
         redrawRoute();
         return;
       }
-      if(showDepth){
-        showDepthAtPoint(e.latlng);
-      }
     });
   }
 
@@ -1181,54 +1179,6 @@ if(navigator.storage && navigator.storage.persist){
     applyDepthLayerState();
     saveSettings();
   });
-
-  // Tap the map (with Depth turned on) to read the actual depth value at that exact spot,
-  // instead of relying on wherever a contour line happens to have a printed label.
-  async function showDepthAtPoint(latlng){
-    const popup = L.popup({ closeButton: true })
-      .setLatLng(latlng)
-      .setContent('🌊 Reading depth…')
-      .openOn(map);
-    try{
-      const size = map.getSize();
-      const bounds = map.getBounds();
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      const point = map.latLngToContainerPoint(latlng);
-      // WMS 1.1.1 always uses lon,lat (x,y) bbox order regardless of CRS — sidesteps the
-      // well-known WMS 1.3.0 axis-order ambiguity that was almost certainly the source of
-      // the wrong depth readings seen before.
-      const params = new URLSearchParams({
-        service: 'WMS', version: '1.1.1', request: 'GetFeatureInfo',
-        layers: 'mean_atlas_land', query_layers: 'mean_atlas_land',
-        srs: 'EPSG:4326',
-        bbox: [sw.lng, sw.lat, ne.lng, ne.lat].join(','),
-        width: size.x, height: size.y,
-        x: Math.round(point.x), y: Math.round(point.y),
-        info_format: 'text/plain',
-        feature_count: 1
-      });
-      const url = 'https://ows.emodnet-bathymetry.eu/wms?' + params.toString();
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('bad response');
-      const text = await res.text();
-      // If the server returned an error/exception report instead of a real value, don't
-      // guess a number out of it — showing a wrong depth is worse than showing none.
-      if(/exception|error|<\?xml/i.test(text)){
-        popup.setContent('🌊 Could not read a reliable depth value here.<br><small style="color:var(--ink-soft);">Try the contour lines on the map instead.</small>');
-        return;
-      }
-      const match = text.match(/-?\d+(\.\d+)?/);
-      if(match){
-        const depthM = Math.abs(parseFloat(match[0]));
-        popup.setContent(`🌊 ~${depthM.toFixed(0)} m deep here<br><small style="color:var(--ink-soft);">EMODnet estimate — treat as approximate, not for navigation</small>`);
-      } else {
-        popup.setContent('🌊 No depth value here — may be on land or outside data coverage.<br><small style="color:var(--ink-soft);">Try tapping over open water.</small>');
-      }
-    } catch(e){
-      popup.setContent('🌊 Could not read depth right now — check your connection and try again.');
-    }
-  }
 
   function applyZonesLayerState(){
     if(!zonesLayer || !map) return;
