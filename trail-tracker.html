@@ -50,11 +50,11 @@
   }
   #status-pill.live{ border-color:var(--rust); color:var(--rust); animation:pulse 1.8s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.55;} }
-  #tripsBtn, #settingsBtn, #fishLogBtn{
+  #tripsBtn, #settingsBtn, #fishLogBtn, #forecastBtn{
     background:transparent; border:1px solid #2c4258; color:var(--paper);
     font-size:12px; padding:6px 10px; border-radius:8px; cursor:pointer;
   }
-  #settingsBtn, #fishLogBtn{ font-size:15px; padding:6px 11px; }
+  #settingsBtn, #fishLogBtn, #forecastBtn{ font-size:15px; padding:6px 11px; }
 
   #compassWidget{
     position:absolute; left:14px; top:14px; z-index:500;
@@ -122,10 +122,30 @@
   #anchorSaveBtn{ background:var(--green); color:var(--paper); }
   #anchorDismissBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; }
 
+  #routePanel{
+    position:absolute; left:10px; right:10px; bottom:90px; z-index:500;
+    background:rgba(11,36,57,0.95); border:1px solid var(--amber); border-radius:12px;
+    padding:11px 13px; flex-direction:column; gap:2px;
+    box-shadow:0 3px 12px rgba(0,0,0,0.4); max-height:70vh; overflow-y:auto;
+  }
+  #routePanel.hidden{ display:none !important; }
+  #routePanel:not(.hidden){ display:flex; }
+  .route-leg{ display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); padding:4px 0; border-bottom:1px solid #12324a; }
+  .route-leg b{ color:var(--paper); }
+  #routeUndoBtn, #routeClearBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; }
+  #routeSaveBtn{ background:var(--rust); color:var(--paper); }
+  #routeDoneBtn{ background:var(--teal); color:var(--paper); }
+
   #clearHighlightsBtn{
     position:absolute; right:16px; top:14px; z-index:500;
     background:var(--navy); color:var(--paper); border:1px solid var(--rust);
     font-size:12px; padding:8px 12px; border-radius:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.35);
+  }
+  #recenterBtn{
+    position:absolute; left:50%; transform:translateX(-50%); top:14px; z-index:500;
+    background:var(--navy); color:var(--paper); border:1px solid var(--teal);
+    font-size:12px; padding:8px 14px; border-radius:20px;
     box-shadow:0 2px 8px rgba(0,0,0,0.35);
   }
 
@@ -150,10 +170,65 @@
   #finishBtn:disabled{ opacity:0.35; }
   #exportBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
   #exportBtn:disabled{ opacity:0.35; }
+  #depthToggleBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
+  #depthToggleBtn.active{ background:var(--teal); border-color:var(--teal); }
+  #zonesToggleBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
+  #zonesToggleBtn.active{ background:var(--green); border-color:var(--green); }
+  #routeModeBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; flex:1 1 auto; }
+  #routeModeBtn.active{ background:var(--amber); border-color:var(--amber); color:var(--navy); }
 
   /* Trips overlay */
-  #tripsOverlay, #settingsOverlay, #fishLogOverlay{ position:fixed; inset:0; background:rgba(7,23,38,0.92); display:none; flex-direction:column; z-index:1000; }
-  #tripsOverlay.open, #settingsOverlay.open, #fishLogOverlay.open{ display:flex; }
+  #forecastMeta{ padding:12px 18px 0; font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
+  #forecastList{ flex:1; overflow-y:auto; padding:10px 14px; }
+  .forecast-day{
+    background:var(--navy); border:1px solid #12324a; border-radius:12px;
+    padding:14px; margin-bottom:10px;
+  }
+  .forecast-day-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .forecast-advisory{ margin-top:8px; padding-top:8px; border-top:1px solid #12324a; font-size:12px; font-weight:600; }
+  .forecast-advisory.good{ color:#7cc98a; }
+  .forecast-advisory.caution{ color:var(--amber); }
+  .forecast-advisory.stayin{ color:#e08d80; }
+  .advisory-disclaimer{
+    background:rgba(216,154,62,0.14); border:1px solid var(--amber); border-radius:10px;
+    padding:10px 12px; margin-bottom:12px; font-size:11.5px; line-height:1.5; color:var(--paper);
+  }
+  .forecast-day-label{ font-size:13px; font-weight:600; width:78px; flex:0 0 auto; }
+  .forecast-temp{ font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; flex:0 0 auto; width:80px; }
+  .forecast-meta{ font-size:11.5px; color:var(--ink-soft); flex:1; line-height:1.5; }
+  .forecast-models{ font-size:10px; color:var(--teal); text-align:right; flex:0 0 auto; }
+
+  #topBanners{ position:fixed; top:0; left:0; right:0; z-index:2000; display:flex; flex-direction:column; }
+  #alertBanner, #licenseBanner{
+    background:var(--rust); color:var(--paper); display:flex; align-items:center; justify-content:space-between;
+    gap:10px; padding:10px 14px; box-shadow:0 2px 10px rgba(0,0,0,0.4);
+  }
+  #licenseBanner{ background:var(--amber); }
+  #alertBanner.hidden, #licenseBanner.hidden{ display:none !important; }
+  #alertBannerText, #licenseBannerText{ font-size:12.5px; font-weight:600; flex:1; }
+  .alert-banner-actions{ display:flex; gap:6px; flex:0 0 auto; }
+  .alert-banner-actions button{ padding:7px 10px; font-size:11.5px; background:rgba(0,0,0,0.25); color:var(--paper); border:1px solid rgba(255,255,255,0.35); }
+  #onboardOverlay{
+    position:fixed; inset:0; background:rgba(7,23,38,0.9); display:none;
+    align-items:center; justify-content:center; z-index:2200;
+  }
+  #onboardOverlay.open{ display:flex; }
+  #onboardModal{ width:88%; max-width:360px; background:var(--navy); border-radius:14px; padding:20px; }
+  #onboardModal h2{ font-size:17px; margin:0; }
+  #licenseRenewOverlay{
+    position:fixed; inset:0; background:rgba(7,23,38,0.75); display:none;
+    align-items:center; justify-content:center; z-index:2100;
+  }
+  #licenseRenewOverlay.open{ display:flex; }
+  #licenseRenewModal{ width:88%; max-width:340px; background:var(--navy); border-radius:14px; padding:18px; }
+  #licenseRenewModal h2{ font-size:16px; margin:0; }
+  #tripsOverlay, #settingsOverlay, #fishLogOverlay, #forecastOverlay, #alertsOverlay, #regulationsOverlay, #statsOverlay, #marinasOverlay, #routesListOverlay{ position:fixed; inset:0; background:rgba(7,23,38,0.92); display:none; flex-direction:column; z-index:1000; }
+  #tripsOverlay.open, #settingsOverlay.open, #fishLogOverlay.open, #forecastOverlay.open, #alertsOverlay.open, #regulationsOverlay.open, #statsOverlay.open, #marinasOverlay.open, #routesListOverlay.open{ display:flex; }
+  .warning-card{ border-radius:12px; padding:12px 14px; margin-bottom:10px; border:1px solid; background:var(--navy); }
+  .warning-card.severe{ border-color:var(--rust); }
+  .warning-card.moderate{ border-color:var(--amber); }
+  .warning-card b{ font-size:13px; }
+  .warning-card .warning-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   #tripsHeader{ display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #12324a; }
   #tripsHeader h2{ font-size:16px; margin:0; }
   #closeTripsBtn{ background:transparent; color:var(--paper); border:1px solid #2c4258; padding:8px 12px; }
@@ -192,6 +267,28 @@
   .switch input:checked + .switch-track{ background:var(--rust); }
   .switch input:checked + .switch-track::before{ transform:translateX(20px); }
 
+  .gear-cat{ margin-bottom:16px; }
+  .gear-cat label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:6px; }
+  .gear-add-row{ display:flex; gap:6px; }
+  .gear-add-row input{ flex:1; }
+  .gear-add-row button{ flex:0 0 auto; width:42px; background:var(--teal); color:var(--paper); font-size:18px; padding:0; }
+  .gear-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .gear-chip{
+    display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:var(--paper);
+    border-radius:16px; padding:5px 6px 5px 12px; font-size:12px;
+  }
+  .gear-chip-thumb{ width:20px; height:20px; border-radius:50%; object-fit:cover; margin-right:2px; }
+  .gear-chip-photo{ background:transparent; border:none; color:var(--ink-soft); font-size:12px; padding:2px 4px; }
+  .gear-chip-del{ background:transparent; border:none; color:var(--ink-soft); font-size:14px; padding:2px 6px; border-radius:50%; }
+  select.gear-select{
+    width:100%; margin-top:6px; background:var(--navy-deep); border:1px solid #2c4258; color:var(--paper);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
+  .combo-card{ background:var(--ink); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .combo-card .combo-name{ font-size:13px; font-weight:600; }
+  .combo-card .combo-parts{ font-size:11.5px; color:var(--ink-soft); margin:2px 0 8px; }
+  .combo-card .combo-del{ background:transparent; border:1px solid var(--rust-dim); color:#e08d80; font-size:11.5px; padding:6px 10px; width:auto; }
+
   /* Spot modal */
   #spotOverlay{
     position:fixed; inset:0; background:rgba(7,23,38,0.75); display:none;
@@ -223,6 +320,17 @@
     width:100%; background:var(--navy-deep); border:1px solid #2c4258; color:var(--paper);
     border-radius:8px; padding:11px 12px; font-size:15px; font-family:inherit;
   }
+  .weather-row{ display:flex; gap:8px; margin-top:8px; }
+  .weather-row .gear-select{ margin-top:0; flex:1; }
+  .weather-row input[type="number"]{ flex:1; }
+  #tideDisplay{
+    flex:1; background:var(--navy-deep); border:1px solid #2c4258; border-radius:8px;
+    padding:10px 12px; font-size:13px; color:var(--paper); display:flex; align-items:center;
+  }
+  .wind-input-wrap{ flex:1; position:relative; }
+  .wind-input-wrap input{ width:100%; padding-right:34px; }
+  .wind-input-wrap span{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--ink-soft); }
+
   #spotActions{ display:flex; gap:10px; margin-top:18px; }
   #spotActions button{ flex:1; }
   #spotCancel{ background:transparent; border:1px solid #2c4258; color:var(--paper); }
@@ -230,15 +338,58 @@
   #spotSave:disabled{ opacity:0.4; }
   .hidden{ display:none !important; }
 
+  input[type="date"]{
+    width:100%; background:var(--navy-deep); border:1px solid #2c4258; color:var(--paper);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
   .leaflet-control-attribution{ font-size:9px; }
 </style>
 </head>
 <body>
+<div id="topBanners">
+  <div id="alertBanner" class="hidden">
+    <div id="alertBannerText"></div>
+    <div class="alert-banner-actions">
+      <button id="alertDetailsBtn" type="button">Details</button>
+      <button id="alertDismissBtn" type="button">✕</button>
+    </div>
+  </div>
+  <div id="licenseBanner" class="hidden">
+    <div id="licenseBannerText"></div>
+    <div class="alert-banner-actions">
+      <button id="licenseRenewBtn" type="button">Renew</button>
+      <button id="licenseSnoozeBtn" type="button">Snooze</button>
+    </div>
+  </div>
+</div>
+
+<div id="onboardOverlay">
+  <div id="onboardModal">
+    <h2>Welcome to Wake</h2>
+    <p style="font-size:13px;color:var(--ink-soft);line-height:1.5;margin:8px 0 14px;">Which country will you mostly be fishing in? This sets which size-limit and season info Save Spot shows you. You can change it anytime in Settings.</p>
+    <select id="onboardCountrySelect" class="gear-select" style="margin-top:0;"></select>
+    <button id="onboardContinueBtn" type="button" style="width:100%;margin-top:16px;background:var(--rust);color:var(--paper);">Continue</button>
+  </div>
+</div>
+
+<div id="licenseRenewOverlay">
+  <div id="licenseRenewModal">
+    <h2>Renew license</h2>
+    <label style="display:block;font-size:12px;color:var(--ink-soft);margin:8px 0 6px;">New expiry date</label>
+    <input type="date" id="licenseRenewInput">
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button id="licenseRenewCancelBtn" type="button" style="flex:1;background:transparent;border:1px solid #2c4258;color:var(--paper);">Cancel</button>
+      <button id="licenseRenewSaveBtn" type="button" style="flex:1;background:var(--rust);color:var(--paper);">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <header>
     <h1>Wake <span>●</span> Trail Tracker</h1>
     <div class="header-right">
       <button id="settingsBtn">⚙</button>
+      <button id="forecastBtn">🌤</button>
       <button id="fishLogBtn">🐟</button>
       <button id="tripsBtn">Trips</button>
       <div id="status-pill">idle</div>
@@ -259,6 +410,7 @@
     <button id="fabSpot"><span class="fab-icon">📍</span>Save<br>Spot</button>
     <button id="fabAnchor"><span class="fab-icon">⚓</span>Anchor</button>
     <button id="clearHighlightsBtn" class="hidden">✕ Clear fish markers</button>
+    <button id="recenterBtn" class="hidden">⦿ Recenter</button>
 
     <div id="anchorPanel">
       <div class="anchor-row">
@@ -275,6 +427,26 @@
         <button id="anchorDismissBtn">✕ Dismiss</button>
       </div>
     </div>
+
+    <div id="routePanel" class="hidden">
+      <div id="routeStatus" style="font-size:12.5px;line-height:1.5;">🧭 Tap the map to add waypoints.</div>
+      <div id="routeLegsList" style="max-height:120px;overflow-y:auto;margin-top:8px;"></div>
+      <div class="weather-row" style="margin-top:8px;">
+        <label style="align-self:center;font-size:12px;color:var(--ink-soft);flex:0 0 auto;margin-right:8px;">Planned speed</label>
+        <div class="wind-input-wrap" style="flex:1;">
+          <input type="number" id="routeSpeedInput" value="6" min="0.5" step="0.5" inputmode="decimal">
+          <span>kn</span>
+        </div>
+      </div>
+      <div class="anchor-actions" style="margin-top:10px;">
+        <button id="routeUndoBtn">Undo point</button>
+        <button id="routeClearBtn">Clear</button>
+      </div>
+      <div class="anchor-actions" style="margin-top:8px;">
+        <button id="routeSaveBtn">Save route</button>
+        <button id="routeDoneBtn">Done</button>
+      </div>
+    </div>
   </div>
 
   <div id="stats">
@@ -288,6 +460,9 @@
     <button id="toggleBtn">Start tracking</button>
     <button id="finishBtn" disabled>Finish &amp; Save Trip</button>
     <button id="exportBtn" disabled>Export GPX</button>
+    <button id="depthToggleBtn">🌊 Depth</button>
+    <button id="zonesToggleBtn">🛡 Zones</button>
+    <button id="routeModeBtn">🧭 Route</button>
   </div>
 </div>
 
@@ -298,6 +473,9 @@
   </div>
   <div style="padding:12px 14px 0;">
     <button id="combinedViewBtn" style="width:100%;background:var(--teal);color:var(--paper);">🗺 View combined coverage (all trips)</button>
+    <button id="statsBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">📊 View statistics</button>
+    <button id="marinasBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">⚓ Nearby marinas</button>
+    <button id="routesListBtn" style="width:100%;margin-top:8px;background:transparent;color:var(--paper);border:1px solid #2c4258;">🧭 Planned routes</button>
   </div>
   <div id="tripsList"></div>
 </div>
@@ -308,6 +486,18 @@
     <button id="closeSettingsBtn">Close</button>
   </div>
   <div id="settingsList">
+    <div class="settings-block">
+      <h3>Language</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;">Translates the main buttons and screen titles. Deeper text (weather labels, messages) stays in English for now.</p>
+      <div class="unit-grid" id="langGrid">
+        <button class="unit-btn" data-lang="en">English</button>
+        <button class="unit-btn" data-lang="zh">中文</button>
+        <button class="unit-btn" data-lang="hi">हिन्दी</button>
+        <button class="unit-btn" data-lang="es">Español</button>
+        <button class="unit-btn" data-lang="ar">العربية</button>
+        <button class="unit-btn" data-lang="hr">Hrvatski</button>
+      </div>
+    </div>
     <div class="settings-block">
       <h3>Speed unit</h3>
       <div class="unit-grid" id="unitGrid">
@@ -338,6 +528,56 @@
       <input type="file" accept=".json,application/json" id="restoreInput" style="display:none">
       <div id="storageUsage" style="margin-top:12px;font-size:11.5px;color:var(--ink-soft);"></div>
     </div>
+    <div class="settings-block">
+      <h3>My Boat</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Used to give a rough go/no-go read on forecast wind and waves. This is the app's own estimate, not an official maritime forecast — your own experience and judgment are the biggest factor, always weigh them more heavily than this.</p>
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin:0 0 6px;">Boat type</label>
+      <select id="boatTypeSelect" class="gear-select" style="margin-top:0;">
+        <option value="">— not set —</option>
+        <option value="dinghy">Small open boat / dinghy (under 5m)</option>
+        <option value="rib">RIB / runabout (5–8m)</option>
+        <option value="cruiser">Cabin cruiser / motor yacht (8m+)</option>
+        <option value="sailboat">Sailboat</option>
+      </select>
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin:10px 0 6px;">Length (m, optional)</label>
+      <input type="number" id="boatLengthInput" step="0.1" min="0" placeholder="e.g. 6.5" inputmode="decimal">
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin:10px 0 6px;">Engine</label>
+      <select id="engineTypeSelect" class="gear-select" style="margin-top:0;">
+        <option value="">— not set —</option>
+        <option value="outboard">Outboard</option>
+        <option value="inboard">Inboard</option>
+        <option value="sail">Sail (no engine / auxiliary only)</option>
+      </select>
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin:10px 0 6px;">Engine power (HP, optional)</label>
+      <input type="number" id="enginePowerInput" step="1" min="0" placeholder="e.g. 60" inputmode="numeric">
+    </div>
+    <div class="settings-block">
+      <h3>Regulations</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Which country's size limits and seasons should Save Spot and the reference list show?</p>
+      <select id="fishingCountrySelect" class="gear-select" style="margin-top:0;"></select>
+    </div>
+    <div class="settings-block">
+      <h3>Fishing License</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Get a reminder before your license runs out.</p>
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin:0 0 6px;">Expiry date</label>
+      <input type="date" id="licenseExpiryInput">
+    </div>
+    <div class="settings-block">
+      <h3>Gear</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;">Add each rod, reel, line, and bait you use. Then build named combos below so you can pick a whole setup in one tap when you log a catch.</p>
+      <div id="gearCategoryList"></div>
+      <input type="file" accept="image/*" id="gearPhotoInput" style="display:none">
+      <div style="margin-top:16px;">
+        <label style="display:block;font-size:12px;color:var(--ink-soft);margin:0 0 6px;">Build a combo</label>
+        <select id="comboRod" class="gear-select"></select>
+        <select id="comboReel" class="gear-select"></select>
+        <select id="comboLine" class="gear-select"></select>
+        <select id="comboBait" class="gear-select"></select>
+        <input type="text" id="comboName" placeholder="Name this setup (optional)" style="margin-top:8px;">
+        <button id="saveComboBtn" style="width:100%;margin-top:8px;background:var(--rust);color:var(--paper);">Save combo</button>
+      </div>
+      <div id="comboList" style="margin-top:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -353,6 +593,65 @@
       <button id="showFishBtn" style="width:100%;margin-top:12px;background:var(--rust);color:var(--paper);">Show all catches on map</button>
       <div id="fishLogEmpty" class="hidden" style="margin-top:16px;font-size:13px;color:var(--ink-soft);">No fish saved yet — mark one with Save Spot next time you catch something.</div>
     </div>
+    <div class="settings-block">
+      <h3>Reference</h3>
+      <button id="openRegulationsBtn" style="width:100%;background:transparent;color:var(--paper);border:1px solid #2c4258;">📖 Croatia size limits &amp; seasons</button>
+    </div>
+  </div>
+</div>
+
+<div id="regulationsOverlay">
+  <div id="tripsHeader">
+    <h2>Size limits &amp; seasons</h2>
+    <button id="closeRegulationsBtn">Close</button>
+  </div>
+  <div class="advisory-disclaimer" style="margin:12px 18px 0;">⚠️ Reference only, based on Croatian recreational sea-fishing rules (SUB.hr, current as of Jan 2026). <b>Not legal advice</b> — regulations change and can vary by species/area. Always verify with the official Fisheries Directorate before keeping a catch.</div>
+  <div id="regulationsList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
+</div>
+
+<div id="statsOverlay">
+  <div id="tripsHeader">
+    <h2>Statistics</h2>
+    <button id="closeStatsBtn">Close</button>
+  </div>
+  <div id="statsContent" style="padding:6px 18px 18px;overflow-y:auto;flex:1;"></div>
+</div>
+
+<div id="marinasOverlay">
+  <div id="tripsHeader">
+    <h2>Nearby marinas</h2>
+    <button id="closeMarinasBtn">Close</button>
+  </div>
+  <div style="padding:12px 18px 0;font-size:11.5px;color:var(--ink-soft);">From OpenStreetMap data — coverage and detail vary by area.</div>
+  <div id="marinasList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
+</div>
+
+<div id="routesListOverlay">
+  <div id="tripsHeader">
+    <h2>Planned routes</h2>
+    <button id="closeRoutesListBtn">Close</button>
+  </div>
+  <div id="routesList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
+</div>
+
+<div id="forecastOverlay">
+  <div id="tripsHeader">
+    <h2>Weather forecast</h2>
+    <button id="closeForecastBtn">Close</button>
+  </div>
+  <div id="forecastMeta"></div>
+  <div id="forecastList"></div>
+</div>
+
+<div id="alertsOverlay">
+  <div id="tripsHeader">
+    <h2>Weather warnings</h2>
+    <button id="closeAlertsBtn">Close</button>
+  </div>
+  <div id="alertsMeta" style="padding:12px 18px 0;font-size:11.5px;color:var(--ink-soft);">Official warnings from MeteoAlarm, aggregating each country's national weather service (DHMZ for Croatia).</div>
+  <div id="alertsList" style="padding:10px 14px;flex:1;overflow-y:auto;"></div>
+  <div style="padding:10px 18px 18px;">
+    <a href="https://meteoalarm.org/en/live/region/HR" target="_blank" rel="noopener" style="color:var(--teal);font-size:12.5px;">Open official MeteoAlarm Croatia page →</a>
   </div>
 </div>
 
@@ -360,6 +659,12 @@
   <div id="spotModal">
     <h2>Save this spot</h2>
     <div class="spot-sub" id="spotCoords">Getting position…</div>
+
+    <button type="button" id="voiceRecordBtn" style="width:100%;background:var(--ink);color:var(--paper);border:1px dashed #3a5165;margin-bottom:10px;">🎙 Speak a note</button>
+    <div id="voiceNotePreviewWrap" class="hidden" style="margin-bottom:10px;">
+      <textarea id="voiceNoteTextArea" rows="3" style="width:100%;background:var(--navy-deep);border:1px solid #2c4258;color:var(--paper);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;" placeholder="Transcribed text appears here — edit anything it got wrong"></textarea>
+      <button type="button" id="voiceNoteRemove" style="margin-top:6px;width:100%;background:transparent;border:1px solid var(--rust-dim);color:#e08d80;">Remove note</button>
+    </div>
 
     <div class="type-grid">
       <button class="type-btn" data-type="ascending">↑ Ascending<br><small>depth getting shallower</small></button>
@@ -381,6 +686,52 @@
         <label>Fish (type new, or pick a saved one)</label>
         <input type="text" id="fishInput" list="fishHistory" placeholder="e.g. Sea bass" autocomplete="off">
         <datalist id="fishHistory"></datalist>
+        <div id="fishRegNote" style="font-size:11.5px;margin-top:5px;min-height:14px;"></div>
+
+        <label>Weight (kg, optional)</label>
+        <input type="number" id="fishWeightInput" step="0.01" min="0" placeholder="e.g. 1.2" inputmode="decimal">
+
+        <label>Gear used (optional)</label>
+        <select id="gearComboSelect" class="gear-select"><option value="">— none —</option></select>
+
+        <label>Technique</label>
+        <select id="techniqueSelect" class="gear-select">
+          <option value="">— not specified —</option>
+          <option value="trolling">Trolling (dragging behind boat)</option>
+          <option value="casting">Casting</option>
+          <option value="bottom">Bottom fishing (anchored/drifting)</option>
+          <option value="jigging">Jigging</option>
+          <option value="spearfishing">Spearfishing</option>
+          <option value="other">Other</option>
+        </select>
+        <div id="trollingSpeedWrap" class="hidden">
+          <label>Boat speed while trolling</label>
+          <div class="wind-input-wrap">
+            <input type="number" id="trollingSpeedInput" step="0.1" inputmode="decimal">
+            <span id="trollingSpeedUnitLabel">kn</span>
+          </div>
+        </div>
+
+        <label>Weather (auto-filled where possible — edit anything that's off)</label>
+        <div class="weather-row">
+          <select id="cloudSelect" class="gear-select" style="margin-top:0;">
+            <option value="">Sky?</option>
+            <option value="clear">Clear</option>
+            <option value="partly">Partly cloudy</option>
+            <option value="cloudy">Cloudy</option>
+            <option value="overcast">Overcast</option>
+          </select>
+          <input type="number" id="seaTempInput" placeholder="Sea °C" step="0.1" inputmode="decimal">
+        </div>
+        <div class="weather-row">
+          <div id="tideDisplay">Tide: —</div>
+          <div class="wind-input-wrap">
+            <input type="number" id="windSpeedInput" placeholder="Wind" step="0.1" inputmode="decimal">
+            <span id="windUnitLabel">kn</span>
+          </div>
+        </div>
+        <div id="weatherStatus" style="font-size:11px;color:var(--ink-soft);margin-top:6px;"></div>
+
         <label>Photo (optional)</label>
         <input type="file" accept="image/*" capture="environment" id="fishPhotoInput" style="display:none">
         <button type="button" id="fishPhotoBtn" style="width:100%;background:var(--ink);color:var(--paper);border:1px dashed #3a5165;">📷 Take / choose photo</button>
@@ -482,7 +833,16 @@ if(navigator.storage && navigator.storage.persist){
   const TRIP_PREFIX = 'wake:trip:';
   const FISH_KEY = 'wake:known-fish';
 
-  let map, polyline, currentMarker;
+  let map, polyline, currentMarker, depthLayer, zonesLayer;
+  let showDepth = false;
+  let showZones = false;
+  let hasShownDepthDisclaimer = false;
+  let hasShownZonesDisclaimer = false;
+  let routeMode = false;
+  let routeWaypoints = []; // [lat, lon]
+  let routePolyline = null;
+  let routeMarkers = [];
+  let marinaLayers = [];
   let points = [];        // [lat, lon, timestamp]
   let markers = [];       // {lat, lon, ts, type, label}
   let markerLayers = [];
@@ -497,9 +857,11 @@ if(navigator.storage && navigator.storage.persist){
   let pendingSpotCoords = null;
   let pendingHeading = null;
   let speedUnit = 'knots';
+  let currentLang = 'en';
   let showCompass = false;
   let currentSpeedMps = 0;
   let compassActive = false;
+  let currentCompassHeading = null;
   let compassListenerFn = null;
   let pendingPhotoDataUrl = null;
   let fishHighlightLayers = [];
@@ -509,6 +871,24 @@ if(navigator.storage && navigator.storage.persist){
   let anchorMarkerLayer = null;
   let anchorLineLayer = null;
   let spotFromAnchor = false;
+  let pendingTideInfo = null;
+
+  const GEAR_KEYS = { rod: 'wake:gear-rods', reel: 'wake:gear-reels', line: 'wake:gear-lines', bait: 'wake:gear-baits' };
+  const GEAR_CATEGORIES = [
+    { key: 'rod', label: 'Rods' },
+    { key: 'reel', label: 'Reels (machine)' },
+    { key: 'line', label: 'Main line' },
+    { key: 'bait', label: 'Bait' }
+  ];
+  let gearLists = { rod: [], reel: [], line: [], bait: [] };
+  let gearCombos = [];
+  let defaultComboId = null;
+  let boatProfile = { type: '', length: null, engineType: '', enginePower: null };
+  let fishingCountry = null;
+  let pendingGearPhotoTarget = null;
+  let pendingVoiceNoteText = '';
+  let recognition = null;
+  let recognizing = false;
 
   const toggleBtn = document.getElementById('toggleBtn');
   const finishBtn = document.getElementById('finishBtn');
@@ -530,6 +910,7 @@ if(navigator.storage && navigator.storage.persist){
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
   const settingsOverlay = document.getElementById('settingsOverlay');
   const unitGrid = document.getElementById('unitGrid');
+  const langGrid = document.getElementById('langGrid');
   const compassToggle = document.getElementById('compassToggle');
   const compassWidget = document.getElementById('compassWidget');
   const compassDial = document.getElementById('compassDial');
@@ -554,6 +935,27 @@ if(navigator.storage && navigator.storage.persist){
 
   const fabSpot = document.getElementById('fabSpot');
   const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
+  const recenterBtn = document.getElementById('recenterBtn');
+  const depthToggleBtn = document.getElementById('depthToggleBtn');
+  const zonesToggleBtn = document.getElementById('zonesToggleBtn');
+  const routeModeBtn = document.getElementById('routeModeBtn');
+  const marinasBtn = document.getElementById('marinasBtn');
+  const closeMarinasBtn = document.getElementById('closeMarinasBtn');
+  const marinasOverlay = document.getElementById('marinasOverlay');
+  const marinasList = document.getElementById('marinasList');
+  const routesListBtn = document.getElementById('routesListBtn');
+  const closeRoutesListBtn = document.getElementById('closeRoutesListBtn');
+  const routesListOverlay = document.getElementById('routesListOverlay');
+  const routesList = document.getElementById('routesList');
+  const routePanel = document.getElementById('routePanel');
+  const routeStatus = document.getElementById('routeStatus');
+  const routeLegsList = document.getElementById('routeLegsList');
+  const routeSpeedInput = document.getElementById('routeSpeedInput');
+  const routeUndoBtn = document.getElementById('routeUndoBtn');
+  const routeClearBtn = document.getElementById('routeClearBtn');
+  const routeSaveBtn = document.getElementById('routeSaveBtn');
+  const routeDoneBtn = document.getElementById('routeDoneBtn');
+  let followMode = true;
   const fabAnchor = document.getElementById('fabAnchor');
   const anchorPanel = document.getElementById('anchorPanel');
   const anchorStatus = document.getElementById('anchorStatus');
@@ -574,12 +976,52 @@ if(navigator.storage && navigator.storage.persist){
   const depthTo = document.getElementById('depthTo');
   const fishInput = document.getElementById('fishInput');
   const fishHistory = document.getElementById('fishHistory');
+  const fishRegNote = document.getElementById('fishRegNote');
+  const openRegulationsBtn = document.getElementById('openRegulationsBtn');
+  const closeRegulationsBtn = document.getElementById('closeRegulationsBtn');
+  const regulationsOverlay = document.getElementById('regulationsOverlay');
+  const regulationsList = document.getElementById('regulationsList');
+  const statsBtn = document.getElementById('statsBtn');
+  const closeStatsBtn = document.getElementById('closeStatsBtn');
+  const statsOverlay = document.getElementById('statsOverlay');
+  const statsContent = document.getElementById('statsContent');
   const otherInput = document.getElementById('otherInput');
   const fishPhotoInput = document.getElementById('fishPhotoInput');
   const fishPhotoBtn = document.getElementById('fishPhotoBtn');
   const fishPhotoPreviewWrap = document.getElementById('fishPhotoPreviewWrap');
   const fishPhotoPreview = document.getElementById('fishPhotoPreview');
   const fishPhotoRemove = document.getElementById('fishPhotoRemove');
+  const fishWeightInput = document.getElementById('fishWeightInput');
+  const gearComboSelect = document.getElementById('gearComboSelect');
+  const cloudSelect = document.getElementById('cloudSelect');
+  const seaTempInput = document.getElementById('seaTempInput');
+  const windSpeedInput = document.getElementById('windSpeedInput');
+  const windUnitLabel = document.getElementById('windUnitLabel');
+  const weatherStatus = document.getElementById('weatherStatus');
+  const tideDisplay = document.getElementById('tideDisplay');
+  const techniqueSelect = document.getElementById('techniqueSelect');
+  const trollingSpeedWrap = document.getElementById('trollingSpeedWrap');
+  const trollingSpeedInput = document.getElementById('trollingSpeedInput');
+  const trollingSpeedUnitLabel = document.getElementById('trollingSpeedUnitLabel');
+  const gearCategoryList = document.getElementById('gearCategoryList');
+  const comboRod = document.getElementById('comboRod');
+  const comboReel = document.getElementById('comboReel');
+  const comboLine = document.getElementById('comboLine');
+  const comboBait = document.getElementById('comboBait');
+  const comboName = document.getElementById('comboName');
+  const saveComboBtn = document.getElementById('saveComboBtn');
+  const comboList = document.getElementById('comboList');
+  const gearPhotoInput = document.getElementById('gearPhotoInput');
+  const boatTypeSelect = document.getElementById('boatTypeSelect');
+  const boatLengthInput = document.getElementById('boatLengthInput');
+  const engineTypeSelect = document.getElementById('engineTypeSelect');
+  const enginePowerInput = document.getElementById('enginePowerInput');
+  const fishingCountrySelect = document.getElementById('fishingCountrySelect');
+  const licenseExpiryInput = document.getElementById('licenseExpiryInput');
+  const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+  const voiceNotePreviewWrap = document.getElementById('voiceNotePreviewWrap');
+  const voiceNoteTextArea = document.getElementById('voiceNoteTextArea');
+  const voiceNoteRemove = document.getElementById('voiceNoteRemove');
 
   const fishLogBtn = document.getElementById('fishLogBtn');
   const closeFishLogBtn = document.getElementById('closeFishLogBtn');
@@ -587,6 +1029,29 @@ if(navigator.storage && navigator.storage.persist){
   const fishFilterSelect = document.getElementById('fishFilterSelect');
   const showFishBtn = document.getElementById('showFishBtn');
   const fishLogEmpty = document.getElementById('fishLogEmpty');
+  const forecastBtn = document.getElementById('forecastBtn');
+  const closeForecastBtn = document.getElementById('closeForecastBtn');
+  const forecastOverlay = document.getElementById('forecastOverlay');
+  const forecastMeta = document.getElementById('forecastMeta');
+  const forecastList = document.getElementById('forecastList');
+  const alertBanner = document.getElementById('alertBanner');
+  const alertBannerText = document.getElementById('alertBannerText');
+  const alertDetailsBtn = document.getElementById('alertDetailsBtn');
+  const alertDismissBtn = document.getElementById('alertDismissBtn');
+  const alertsOverlay = document.getElementById('alertsOverlay');
+  const alertsList = document.getElementById('alertsList');
+  const closeAlertsBtn = document.getElementById('closeAlertsBtn');
+  const licenseBanner = document.getElementById('licenseBanner');
+  const licenseBannerText = document.getElementById('licenseBannerText');
+  const licenseRenewBtn = document.getElementById('licenseRenewBtn');
+  const licenseSnoozeBtn = document.getElementById('licenseSnoozeBtn');
+  const licenseRenewOverlay = document.getElementById('licenseRenewOverlay');
+  const licenseRenewInput = document.getElementById('licenseRenewInput');
+  const licenseRenewCancelBtn = document.getElementById('licenseRenewCancelBtn');
+  const licenseRenewSaveBtn = document.getElementById('licenseRenewSaveBtn');
+  const onboardOverlay = document.getElementById('onboardOverlay');
+  const onboardCountrySelect = document.getElementById('onboardCountrySelect');
+  const onboardContinueBtn = document.getElementById('onboardContinueBtn');
 
   function showBanner(msg){ banner.textContent = msg; banner.style.display = 'block'; }
   function hideBanner(){ banner.style.display = 'none'; }
@@ -596,7 +1061,341 @@ if(navigator.storage && navigator.storage.persist){
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '© OpenStreetMap'
     }).addTo(map);
+    // Seabed depth overlay — EMODnet Bathymetry (EU marine data service), free incl. commercial
+    // use with attribution. Explicitly NOT for navigation — informational reference only.
+    depthLayer = L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
+      layers: 'mean_multicolour,contours',
+      format: 'image/png',
+      transparent: true,
+      version: '1.3.0',
+      opacity: 0.65,
+      maxZoom: 19,
+      attribution: 'Bathymetry © EMODnet — not for navigation'
+    });
+    // Marine protected areas (Natura 2000) — EU nature-protection network, free incl.
+    // commercial use. Boundaries are approximate reference only, not a legal survey.
+    zonesLayer = L.tileLayer.wms('https://ows.emodnet-humanactivities.eu/wms', {
+      layers: 'natura2000areas',
+      format: 'image/png',
+      transparent: true,
+      version: '1.3.0',
+      opacity: 0.5,
+      maxZoom: 19,
+      attribution: 'Protected areas © EMODnet Human Activities'
+    });
     polyline = L.polyline([], { color: '#C8442E', weight: 3.5, opacity: 0.95 }).addTo(map);
+
+    // 'dragstart' only fires for user-initiated panning, not our own programmatic
+    // setView/panTo calls — so this is a clean way to detect "user took over."
+    map.on('dragstart', ()=>{
+      followMode = false;
+      recenterBtn.classList.remove('hidden');
+    });
+
+    map.on('click', (e)=>{
+      if(!routeMode) return;
+      routeWaypoints.push([e.latlng.lat, e.latlng.lng]);
+      redrawRoute();
+    });
+  }
+
+  recenterBtn.addEventListener('click', ()=>{
+    followMode = true;
+    recenterBtn.classList.add('hidden');
+    if(points.length){
+      const last = points[points.length-1];
+      map.setView([last[0], last[1]], desiredZoomForSpeed(currentSpeedMps), { animate: true });
+    }
+  });
+
+  function applyDepthLayerState(){
+    if(!depthLayer || !map) return;
+    if(showDepth) depthLayer.addTo(map);
+    else map.removeLayer(depthLayer);
+    depthToggleBtn.classList.toggle('active', showDepth);
+  }
+
+  depthToggleBtn.addEventListener('click', ()=>{
+    if(!showDepth && !hasShownDepthDisclaimer){
+      hasShownDepthDisclaimer = true;
+      alert('Seabed depth shading (EMODnet). This is reference data for general awareness only — NOT an official nautical chart. Never use it for navigation; always rely on your official charts and equipment.');
+    }
+    showDepth = !showDepth;
+    applyDepthLayerState();
+    saveSettings();
+  });
+
+  function applyZonesLayerState(){
+    if(!zonesLayer || !map) return;
+    if(showZones) zonesLayer.addTo(map);
+    else map.removeLayer(zonesLayer);
+    zonesToggleBtn.classList.toggle('active', showZones);
+  }
+
+  zonesToggleBtn.addEventListener('click', ()=>{
+    if(!showZones && !hasShownZonesDisclaimer){
+      hasShownZonesDisclaimer = true;
+      alert('Marine protected areas (Natura 2000 / EMODnet). Boundaries shown are approximate reference only — always check official local regulations before fishing or anchoring near a marked zone.');
+    }
+    showZones = !showZones;
+    applyZonesLayerState();
+    saveSettings();
+  });
+
+  // ---- Route planning: tap the map to lay down waypoints, see distance + ETA per leg ----
+  function routeWaypointIcon(n){
+    return L.divIcon({
+      html: `<div style="width:24px;height:24px;border-radius:50%;background:var(--amber);border:2px solid #ECE6D6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--navy);">${n}</div>`,
+      className: '', iconSize: [24,24], iconAnchor: [12,12]
+    });
+  }
+
+  function clearRouteVisuals(){
+    if(routePolyline){ map.removeLayer(routePolyline); routePolyline = null; }
+    routeMarkers.forEach(m => map.removeLayer(m));
+    routeMarkers = [];
+  }
+
+  function redrawRoute(){
+    clearRouteVisuals();
+    if(routeWaypoints.length){
+      routePolyline = L.polyline(routeWaypoints, { color: '#D89A3E', weight: 3, dashArray: '8,6' }).addTo(map);
+      routeWaypoints.forEach((wp, i) => {
+        const marker = L.marker(wp, { icon: routeWaypointIcon(i+1) }).addTo(map);
+        routeMarkers.push(marker);
+      });
+    }
+    updateRoutePanel();
+  }
+
+  function updateRoutePanel(){
+    const speedKn = parseFloat(routeSpeedInput.value) || 6;
+    if(routeWaypoints.length === 0){
+      routeStatus.textContent = '🧭 Tap the map to add waypoints.';
+      routeLegsList.innerHTML = '';
+      return;
+    }
+    routeStatus.textContent = `🧭 ${routeWaypoints.length} waypoint${routeWaypoints.length===1?'':'s'} — tap the map to add more.`;
+    let cumNM = 0;
+    const now = Date.now();
+    let html = '';
+    for(let i=1; i<routeWaypoints.length; i++){
+      const legNM = haversineNM(routeWaypoints[i-1], routeWaypoints[i]);
+      cumNM += legNM;
+      const etaMs = now + (cumNM / speedKn) * 3600000;
+      const etaStr = new Date(etaMs).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+      html += `<div class="route-leg"><span>Leg ${i}: ${legNM.toFixed(1)} NM</span><b>ETA ${etaStr}</b></div>`;
+    }
+    if(routeWaypoints.length >= 2){
+      html += `<div class="route-leg"><span>Total</span><b>${cumNM.toFixed(1)} NM</b></div>`;
+    }
+    routeLegsList.innerHTML = html;
+  }
+  routeSpeedInput.addEventListener('input', updateRoutePanel);
+
+  routeModeBtn.addEventListener('click', ()=>{
+    routeMode = !routeMode;
+    routeModeBtn.classList.toggle('active', routeMode);
+    routePanel.classList.toggle('hidden', !routeMode);
+    if(routeMode) updateRoutePanel();
+  });
+
+  routeUndoBtn.addEventListener('click', ()=>{
+    routeWaypoints.pop();
+    redrawRoute();
+  });
+  routeClearBtn.addEventListener('click', ()=>{
+    if(routeWaypoints.length && !confirm('Clear this planned route?')) return;
+    routeWaypoints = [];
+    redrawRoute();
+  });
+  routeDoneBtn.addEventListener('click', ()=>{
+    routeMode = false;
+    routeModeBtn.classList.remove('active');
+    routePanel.classList.add('hidden');
+  });
+
+  const ROUTES_INDEX_KEY = 'wake:routes-index';
+  const ROUTE_PREFIX = 'wake:route:';
+
+  async function getRoutesIndex(){
+    try{
+      const res = await window.storage.get(ROUTES_INDEX_KEY, false);
+      return res && res.value ? JSON.parse(res.value) : [];
+    } catch(e){ return []; }
+  }
+  async function saveRoutesIndex(index){
+    try{ await window.storage.set(ROUTES_INDEX_KEY, JSON.stringify(index), false); } catch(e){}
+  }
+
+  routeSaveBtn.addEventListener('click', async ()=>{
+    if(routeWaypoints.length < 2){ showBanner('Add at least two waypoints before saving a route.'); return; }
+    const speedKn = parseFloat(routeSpeedInput.value) || 6;
+    let totalNM = 0;
+    for(let i=1; i<routeWaypoints.length; i++) totalNM += haversineNM(routeWaypoints[i-1], routeWaypoints[i]);
+    const name = prompt('Name this route:', 'Route ' + new Date().toLocaleDateString());
+    if(!name) return;
+    const id = 'route_' + Date.now();
+    try{
+      await window.storage.set(ROUTE_PREFIX + id, JSON.stringify({ name, waypoints: routeWaypoints, speedKn, totalNM, createdAt: Date.now() }), false);
+      const index = await getRoutesIndex();
+      index.unshift({ id, name, totalNM, waypointCount: routeWaypoints.length, createdAt: Date.now() });
+      await saveRoutesIndex(index);
+      showBanner('Route saved: ' + name);
+    } catch(e){
+      showBanner('Could not save the route — try again.');
+    }
+  });
+
+  async function renderRoutesList(){
+    const index = await getRoutesIndex();
+    if(index.length === 0){
+      routesList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">No saved routes yet — use 🧭 Route on the map to plan one.</div>';
+      return;
+    }
+    routesList.innerHTML = index.map(r => `
+      <div class="trip-card">
+        <div class="trip-title">${r.name}</div>
+        <div class="trip-meta">${r.totalNM.toFixed(1)} NM · ${r.waypointCount} waypoints · ${new Date(r.createdAt).toLocaleDateString()}</div>
+        <div class="trip-actions">
+          <button class="btn-view" data-act="view" data-id="${r.id}">View</button>
+          <button class="btn-del" data-act="del" data-id="${r.id}">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  routesList.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id, act = btn.dataset.act;
+    if(act === 'del'){
+      if(!confirm('Delete this saved route?')) return;
+      try{ await window.storage.delete(ROUTE_PREFIX + id, false); } catch(e){}
+      const index = await getRoutesIndex();
+      await saveRoutesIndex(index.filter(r => r.id !== id));
+      renderRoutesList();
+      return;
+    }
+    if(act === 'view'){
+      try{
+        const res = await window.storage.get(ROUTE_PREFIX + id, false);
+        const data = JSON.parse(res.value);
+        routesListOverlay.classList.remove('open');
+        routeWaypoints = data.waypoints;
+        routeSpeedInput.value = data.speedKn || 6;
+        redrawRoute();
+        if(routeWaypoints.length){
+          map.fitBounds(L.latLngBounds(routeWaypoints), { padding: [40,40] });
+        }
+        routeMode = true;
+        routeModeBtn.classList.add('active');
+        routePanel.classList.remove('hidden');
+      } catch(e){
+        showBanner('Could not load that route.');
+      }
+    }
+  });
+
+  routesListBtn.addEventListener('click', ()=>{
+    tripsOverlay.classList.remove('open');
+    routesListOverlay.classList.add('open');
+    renderRoutesList();
+  });
+  closeRoutesListBtn.addEventListener('click', ()=> routesListOverlay.classList.remove('open'));
+
+  // ---- Nearby marinas (OpenStreetMap via Overpass API) ----
+  function clearMarinaMarkers(){
+    marinaLayers.forEach(l => map.removeLayer(l));
+    marinaLayers = [];
+  }
+
+  function marinaIcon(){
+    return L.divIcon({
+      html: `<div style="width:26px;height:26px;border-radius:50%;background:#2C7873;border:2px solid #ECE6D6;display:flex;align-items:center;justify-content:center;font-size:13px;">⚓</div>`,
+      className: '', iconSize: [26,26], iconAnchor: [13,13]
+    });
+  }
+
+  async function fetchNearbyMarinas(lat, lon, radiusM){
+    const query = `[out:json][timeout:25];(node["leisure"="marina"](around:${radiusM},${lat},${lon});way["leisure"="marina"](around:${radiusM},${lat},${lon}););out center;`;
+    try{
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query)
+      });
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      return data.elements.map(el => {
+        const mlat = el.lat || (el.center && el.center.lat);
+        const mlon = el.lon || (el.center && el.center.lon);
+        if(mlat == null || mlon == null) return null;
+        const tags = el.tags || {};
+        return {
+          name: tags.name || 'Unnamed marina',
+          lat: mlat, lon: mlon,
+          phone: tags.phone || tags['contact:phone'] || null,
+          website: tags.website || tags['contact:website'] || null,
+          distNM: haversineNM([lat,lon], [mlat,mlon])
+        };
+      }).filter(Boolean).sort((a,b) => a.distNM - b.distNM);
+    } catch(e){ return null; }
+  }
+
+  async function renderMarinasList(){
+    marinasList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Searching nearby…</div>';
+    clearMarinaMarkers();
+    getBestKnownCoords(async (coords) => {
+      if(!coords){
+        marinasList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Could not get your location.</div>';
+        return;
+      }
+      const marinas = await fetchNearbyMarinas(coords[0], coords[1], 25000);
+      if(marinas === null){
+        marinasList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Could not reach the marina lookup service — check your connection and try again.</div>';
+        return;
+      }
+      if(marinas.length === 0){
+        marinasList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">No marinas found within 25 NM in the map data for this area.</div>';
+        return;
+      }
+      marinasList.innerHTML = marinas.slice(0, 20).map((m, i) => `
+        <div class="trip-card">
+          <div class="trip-title">⚓ ${m.name}</div>
+          <div class="trip-meta">${m.distNM.toFixed(1)} NM away${m.phone ? ' · 📞 '+m.phone : ''}${m.website ? ' · <a href="'+m.website+'" target="_blank" rel="noopener" style="color:var(--teal);">website</a>' : ''}</div>
+          <div class="trip-actions">
+            <button class="btn-view" data-idx="${i}">Show on map</button>
+          </div>
+        </div>
+      `).join('');
+      marinas.slice(0, 20).forEach(m => {
+        const layer = L.marker([m.lat, m.lon], { icon: marinaIcon() }).bindPopup(`<b>⚓ ${m.name}</b>`);
+        layer.addTo(map);
+        marinaLayers.push(layer);
+      });
+      marinasList.querySelectorAll('button[data-idx]').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          const m = marinas[parseInt(btn.dataset.idx, 10)];
+          marinasOverlay.classList.remove('open');
+          map.setView([m.lat, m.lon], 15);
+        });
+      });
+    });
+  }
+
+  marinasBtn.addEventListener('click', ()=>{
+    tripsOverlay.classList.remove('open');
+    marinasOverlay.classList.add('open');
+    renderMarinasList();
+  });
+  closeMarinasBtn.addEventListener('click', ()=> marinasOverlay.classList.remove('open'));
+
+  function desiredZoomForSpeed(speedMps){
+    if(speedMps < 1.0) return 17;   // ~under 2 knots — you're paying close attention
+    if(speedMps < 2.6) return 16;   // ~2-5 knots
+    if(speedMps < 5.1) return 15;   // ~5-10 knots
+    if(speedMps < 10.3) return 14;  // ~10-20 knots
+    return 13;                      // 20+ knots — zoom out for the bigger picture
   }
 
   function haversineNM(a, b){
@@ -692,6 +1491,23 @@ if(navigator.storage && navigator.storage.persist){
     if(anchorLineLayer){ map.removeLayer(anchorLineLayer); anchorLineLayer = null; }
   }
 
+  function bearingToCardinal(deg){
+    const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+    return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+  }
+
+  // "Which side" guidance: compares the bearing to the anchor against the boat's own
+  // heading (live compass if it's on, otherwise the trail's recent direction of travel).
+  function relativeDirectionLabel(brg){
+    const heading = (compassActive && typeof currentCompassHeading === 'number') ? currentCompassHeading : computeHeading();
+    if(typeof heading !== 'number') return '';
+    const rel = ((brg - heading) % 360 + 360) % 360;
+    if(rel >= 315 || rel < 45) return ' — ahead';
+    if(rel < 135) return ' — to your right';
+    if(rel < 225) return ' — behind you';
+    return ' — to your left';
+  }
+
   function updateAnchorPanel(currentLatLon){
     if(!anchorPoint){
       anchorStatus.textContent = '⚓ Getting a fix… stay put for a few seconds.';
@@ -707,7 +1523,9 @@ if(navigator.storage && navigator.storage.persist){
         anchorArrow.style.visibility = 'hidden';
       } else {
         const brg = bearingDeg(currentLatLon[0], currentLatLon[1], anchorPoint.lat, anchorPoint.lon);
-        readout = Math.round(distM) + 'm away · head ' + Math.round(brg) + '°';
+        const cardinal = bearingToCardinal(brg);
+        const relative = relativeDirectionLabel(brg);
+        readout = Math.round(distM) + 'm away · head ' + Math.round(brg) + '° (' + cardinal + ')' + relative;
         anchorArrow.style.visibility = 'visible';
         anchorArrow.style.transform = 'rotate(' + brg + 'deg)';
       }
@@ -762,11 +1580,32 @@ if(navigator.storage && navigator.storage.persist){
     return L.divIcon({ html, className: '', iconSize: [30,30], iconAnchor: [15,15] });
   }
 
+  const CLOUD_LABELS = { clear: 'Clear', partly: 'Partly cloudy', cloudy: 'Cloudy', overcast: 'Overcast' };
+  const TECHNIQUE_LABELS = { trolling: 'Trolling', casting: 'Casting', bottom: 'Bottom fishing', jigging: 'Jigging', spearfishing: 'Spearfishing', other: 'Other technique' };
+
+  function fishExtrasLine(m){
+    const bits = [];
+    if(typeof m.weight === 'number') bits.push(m.weight + ' kg');
+    if(m.gearCombo) bits.push('🎣 ' + m.gearCombo);
+    if(m.technique) bits.push(TECHNIQUE_LABELS[m.technique] || m.technique);
+    if(typeof m.trollingSpeed === 'number') bits.push('at ' + m.trollingSpeed + ' ' + (SPEED_UNITS[m.trollingSpeedUnit]?.label || ''));
+    if(m.cloud) bits.push(CLOUD_LABELS[m.cloud] || m.cloud);
+    if(typeof m.seaTemp === 'number') bits.push(m.seaTemp + '°C sea');
+    if(m.tideDetail) bits.push('Tide: ' + m.tideDetail);
+    else if(m.tide) bits.push('Tide: ' + m.tide);
+    if(typeof m.windSpeed === 'number') bits.push(m.windSpeed + ' ' + (SPEED_UNITS[m.windSpeedUnit]?.label || '') + ' wind');
+    return bits.length ? '<br><small>' + bits.join(' · ') + '</small>' : '';
+  }
+
+  function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
   function makeMarkerLayer(m){
     const popup = `<b>${MARKER_SYMBOL[m.type] || ''} ${m.label}</b>` +
       (typeof m.heading === 'number' ? `<br><small>Heading ~${Math.round(m.heading)}°</small>` : '') +
       `<br><small>${new Date(m.ts).toLocaleTimeString()}</small>` +
-      (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '');
+      (m.type === 'fish' ? fishExtrasLine(m) : '') +
+      (m.photo ? `<br><img src="${m.photo}" style="width:140px;border-radius:6px;margin-top:6px;display:block;">` : '') +
+      (m.voiceNote ? `<br><small>🎙 "${escHtml(m.voiceNote)}"</small>` : '');
     let layer;
     if((m.type === 'ascending' || m.type === 'descending') && typeof m.heading === 'number'){
       layer = L.marker([m.lat, m.lon], { icon: arrowIcon(MARKER_COLORS[m.type], m.heading) });
@@ -883,6 +1722,15 @@ if(navigator.storage && navigator.storage.persist){
     redraw();
     schedulePersist();
 
+    if(followMode && map && points.length > 1){
+      const targetZoom = desiredZoomForSpeed(currentSpeedMps);
+      if(Math.abs(map.getZoom() - targetZoom) >= 1){
+        map.setView([latitude, longitude], targetZoom, { animate: true });
+      } else {
+        map.panTo([latitude, longitude], { animate: true });
+      }
+    }
+
     if(anchorActive){
       anchorSamples.push([latitude, longitude]);
       if(anchorSamples.length > 400) anchorSamples.shift(); // bound memory on long anchors
@@ -903,14 +1751,13 @@ if(navigator.storage && navigator.storage.persist){
   function startTracking(){
     if(!navigator.geolocation){ showBanner('This browser has no GPS access.'); return; }
     if(!startedAt){
-      // Brand new trip — ask once, up front, whether it should count toward the
-      // combined "everywhere I've been" view later (e.g. skip casual outings
-      // where you're not tracking fish/depth spots).
+      const wantsCheck = confirm('Show your past-trip coverage on the map while you track this one, so you can see where you\'ve already been?\n\nOK = yes, keep it on screen.\nCancel = no thanks.');
+      if(wantsCheck) showCombinedCoverage(); // stays drawn on the map throughout tracking until you tap "Exit combined view"
       includeInCombined = confirm('Include this trip in the combined "all trips" coverage view later?\n\nOK = yes, include it.\nCancel = no, keep it separate (e.g. a casual trip where you\'re not marking fish/depth).');
       startedAt = Date.now();
     }
     tracking = true;
-    toggleBtn.textContent = 'Stop tracking';
+    toggleBtn.textContent = t('stopTracking');
     toggleBtn.classList.add('tracking');
     statusPill.textContent = 'live';
     statusPill.classList.add('live');
@@ -925,7 +1772,7 @@ if(navigator.storage && navigator.storage.persist){
     tracking = false;
     if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
     if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
-    toggleBtn.textContent = 'Resume tracking';
+    toggleBtn.textContent = t('resumeTracking');
     toggleBtn.classList.remove('tracking');
     statusPill.textContent = 'paused';
     statusPill.classList.remove('live');
@@ -942,9 +1789,26 @@ if(navigator.storage && navigator.storage.persist){
     fieldsFish.classList.add('hidden');
     fieldsOther.classList.add('hidden');
     depthFrom.value = ''; depthTo.value = ''; fishInput.value = ''; otherInput.value = '';
+    fishRegNote.textContent = '';
     pendingPhotoDataUrl = null;
     fishPhotoInput.value = '';
     fishPhotoPreviewWrap.classList.add('hidden');
+    fishWeightInput.value = '';
+    gearComboSelect.value = '';
+    cloudSelect.value = '';
+    seaTempInput.value = '';
+    windSpeedInput.value = '';
+    weatherStatus.textContent = '';
+    techniqueSelect.value = '';
+    trollingSpeedInput.value = '';
+    trollingSpeedWrap.classList.add('hidden');
+    pendingTideInfo = null;
+    tideDisplay.textContent = 'Tide: —';
+    populateGearComboSelect();
+    if(recognizing) stopVoiceRecognition();
+    pendingVoiceNoteText = '';
+    voiceNoteTextArea.value = '';
+    voiceNotePreviewWrap.classList.add('hidden');
     spotSave.disabled = true;
   }
 
@@ -996,6 +1860,96 @@ if(navigator.storage && navigator.storage.persist){
     fishPhotoPreviewWrap.classList.add('hidden');
   });
 
+  // ---- Voice notes — speech-to-text, hands-free while driving the boat ----
+  const RECOGNITION_LANG = { en: 'en-US', hr: 'hr-HR', zh: 'zh-CN', hi: 'hi-IN', es: 'es-ES', ar: 'ar-SA' };
+
+  function getSpeechRecognitionCtor(){
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+
+  function startVoiceRecognition(){
+    const SR = getSpeechRecognitionCtor();
+    if(!SR){
+      showBanner('Speech-to-text isn\'t supported on this browser/device — try typing the note instead in a future version.');
+      return;
+    }
+    voiceNotePreviewWrap.classList.remove('hidden');
+    let finalTranscript = voiceNoteTextArea.value ? voiceNoteTextArea.value.trim() + ' ' : '';
+    recognition = new SR();
+    recognition.lang = RECOGNITION_LANG[currentLang] || 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      let interim = '';
+      for(let i = event.resultIndex; i < event.results.length; i++){
+        const transcript = event.results[i][0].transcript;
+        if(event.results[i].isFinal) finalTranscript += transcript + ' ';
+        else interim += transcript;
+      }
+      voiceNoteTextArea.value = (finalTranscript + interim).trim();
+      pendingVoiceNoteText = voiceNoteTextArea.value;
+    };
+    recognition.onerror = (e) => {
+      if(e.error !== 'no-speech') showBanner('Voice recognition error: ' + e.error);
+    };
+    recognition.onend = () => {
+      recognizing = false;
+      voiceRecordBtn.textContent = '🎙 Speak a note';
+      voiceRecordBtn.style.background = 'var(--ink)';
+      parseVoiceForSpotFields(pendingVoiceNoteText);
+    };
+    try{
+      recognition.start();
+      recognizing = true;
+      voiceRecordBtn.textContent = '⏹ Stop listening';
+      voiceRecordBtn.style.background = 'var(--rust)';
+    } catch(e){
+      showBanner('Could not start listening — check microphone permission.');
+    }
+  }
+
+  function stopVoiceRecognition(){
+    if(recognition && recognizing) recognition.stop();
+  }
+
+  voiceRecordBtn.addEventListener('click', ()=>{
+    if(recognizing) stopVoiceRecognition();
+    else startVoiceRecognition();
+  });
+
+  voiceNoteTextArea.addEventListener('input', ()=>{
+    pendingVoiceNoteText = voiceNoteTextArea.value;
+  });
+
+  voiceNoteRemove.addEventListener('click', ()=>{
+    pendingVoiceNoteText = '';
+    voiceNoteTextArea.value = '';
+    voiceNotePreviewWrap.classList.add('hidden');
+  });
+
+  // Listens for a type word ("descending", "ascending", "fish") plus a depth range
+  // ("fifty to sixty", "50-60") and fills the form the way tapping through it would —
+  // so you can just say what you saw on the sonar instead of typing it.
+  function parseVoiceForSpotFields(text){
+    if(!text) return;
+    const lower = text.toLowerCase();
+    const numberMatches = lower.match(/\d+(\.\d+)?/g);
+    const isDescending = /(descend|deeper|drop|dropp?ed|sink|going down)/.test(lower);
+    const isAscending = !isDescending && /(ascend|shallow|rising|rose|climb|coming up)/.test(lower);
+    const isFish = /(fish|caught|catch|landed)/.test(lower);
+
+    if((isDescending || isAscending) && numberMatches && numberMatches.length >= 2){
+      selectSpotType(isDescending ? 'descending' : 'ascending');
+      depthFrom.value = numberMatches[0];
+      depthTo.value = numberMatches[1];
+      validateSpotForm();
+      showBanner('Filled in from what you said — check the numbers before saving.');
+    } else if(isFish && !selectedType){
+      selectSpotType('fish');
+      showBanner('Set to Fish from what you said — type the species and check the details.');
+    }
+  }
+
   function headingSuffix(){
     const h = computeHeading();
     pendingHeading = h;
@@ -1012,6 +1966,7 @@ if(navigator.storage && navigator.storage.persist){
       pendingSpotCoords = overrideCoords;
       spotCoords.textContent = overrideCoords[0].toFixed(5) + ', ' + overrideCoords[1].toFixed(5) +
         ' (from anchor · ' + anchorSamples.length + ' pings)' + headingSuffix();
+      fetchAndFillWeather(overrideCoords);
       return;
     }
 
@@ -1022,12 +1977,14 @@ if(navigator.storage && navigator.storage.persist){
         pos => {
           pendingSpotCoords = [pos.coords.latitude, pos.coords.longitude];
           spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + headingSuffix();
+          fetchAndFillWeather(pendingSpotCoords);
         },
         err => {
           if(points.length){
             const last = points[points.length-1];
             pendingSpotCoords = [last[0], last[1]];
             spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + ' (last known position)' + headingSuffix();
+            fetchAndFillWeather(pendingSpotCoords);
           } else {
             spotCoords.textContent = 'Could not get position: ' + err.message;
           }
@@ -1038,21 +1995,26 @@ if(navigator.storage && navigator.storage.persist){
       const last = points[points.length-1];
       pendingSpotCoords = [last[0], last[1]];
       spotCoords.textContent = pendingSpotCoords[0].toFixed(5) + ', ' + pendingSpotCoords[1].toFixed(5) + ' (last known position)' + headingSuffix();
+      fetchAndFillWeather(pendingSpotCoords);
     }
   }
 
-  function closeSpotModal(){ spotOverlay.classList.remove('open'); }
+  function closeSpotModal(){
+    if(recognizing) stopVoiceRecognition();
+    spotOverlay.classList.remove('open');
+  }
+
+  function selectSpotType(type){
+    selectedType = type;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === type));
+    fieldsDepth.classList.toggle('hidden', !(selectedType === 'ascending' || selectedType === 'descending'));
+    fieldsFish.classList.toggle('hidden', selectedType !== 'fish');
+    fieldsOther.classList.toggle('hidden', selectedType !== 'other');
+    validateSpotForm();
+  }
 
   document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.addEventListener('click', ()=>{
-      selectedType = btn.dataset.type;
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      fieldsDepth.classList.toggle('hidden', !(selectedType === 'ascending' || selectedType === 'descending'));
-      fieldsFish.classList.toggle('hidden', selectedType !== 'fish');
-      fieldsOther.classList.toggle('hidden', selectedType !== 'other');
-      validateSpotForm();
-    });
+    btn.addEventListener('click', ()=> selectSpotType(btn.dataset.type));
   });
 
   function validateSpotForm(){
@@ -1193,6 +2155,886 @@ if(navigator.storage && navigator.storage.persist){
     }
   }
 
+  // ---- Gear inventory + saved combos ----
+  async function loadGear(){
+    for(const key in GEAR_KEYS){
+      try{
+        const res = await window.storage.get(GEAR_KEYS[key], false);
+        const raw = res && res.value ? JSON.parse(res.value) : [];
+        // Migrate old plain-string entries to {name, photo} objects.
+        gearLists[key] = raw.map(item => typeof item === 'string' ? { name: item, photo: null } : item);
+      } catch(e){ gearLists[key] = []; }
+    }
+    try{
+      const res = await window.storage.get('wake:gear-combos', false);
+      gearCombos = res && res.value ? JSON.parse(res.value) : [];
+    } catch(e){ gearCombos = []; }
+    renderGearCategories();
+    populateComboSelects();
+    renderComboList();
+    populateGearComboSelect();
+  }
+
+  async function saveGearList(key){
+    try{ await window.storage.set(GEAR_KEYS[key], JSON.stringify(gearLists[key]), false); } catch(e){}
+  }
+  async function saveGearCombos(){
+    try{ await window.storage.set('wake:gear-combos', JSON.stringify(gearCombos), false); } catch(e){}
+  }
+
+  function renderGearCategories(){
+    gearCategoryList.innerHTML = GEAR_CATEGORIES.map(cat => `
+      <div class="gear-cat">
+        <label>${cat.label}</label>
+        <div class="gear-add-row">
+          <input type="text" class="gear-add-input" data-cat="${cat.key}" placeholder="Add ${cat.label.toLowerCase()}…">
+          <button class="gear-add-btn" data-cat="${cat.key}" type="button">+</button>
+        </div>
+        <div class="gear-chips">
+          ${(gearLists[cat.key]||[]).length
+            ? gearLists[cat.key].map(item => `<span class="gear-chip">${item.photo ? `<img src="${item.photo}" class="gear-chip-thumb">` : ''}${item.name}<button class="gear-chip-photo" data-cat="${cat.key}" data-item="${item.name.replace(/"/g,'&quot;')}" type="button">📷</button><button class="gear-chip-del" data-cat="${cat.key}" data-item="${item.name.replace(/"/g,'&quot;')}" type="button">×</button></span>`).join('')
+            : '<span style="font-size:11px;color:var(--ink-soft);">None added yet</span>'}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function populateComboSelects(){
+    const fill = (sel, items, placeholder) => {
+      sel.innerHTML = `<option value="">${placeholder}</option>` + items.map(i => `<option value="${i.name.replace(/"/g,'&quot;')}">${i.name}</option>`).join('');
+    };
+    fill(comboRod, gearLists.rod, 'Rod…');
+    fill(comboReel, gearLists.reel, 'Reel…');
+    fill(comboLine, gearLists.line, 'Line…');
+    fill(comboBait, gearLists.bait, 'Bait…');
+  }
+
+  function renderComboList(){
+    comboList.innerHTML = gearCombos.length === 0
+      ? '<div style="font-size:11px;color:var(--ink-soft);">No combos saved yet.</div>'
+      : gearCombos.map(c => `
+        <div class="combo-card" style="${c.id===defaultComboId ? 'border:1px solid var(--amber);' : ''}">
+          <div class="combo-name">${c.id===defaultComboId ? '★ ' : ''}${c.name}</div>
+          <div class="combo-parts">${[c.rod,c.reel,c.line,c.bait].filter(Boolean).join(' · ') || '—'}</div>
+          <div style="display:flex;gap:8px;">
+            <button class="combo-default-btn" data-id="${c.id}" type="button" style="flex:1;background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:11.5px;padding:6px 10px;">${c.id===defaultComboId ? '★ Default (tap to unset)' : '☆ Set as default'}</button>
+            <button class="combo-del" data-id="${c.id}" type="button">Delete</button>
+          </div>
+        </div>
+      `).join('');
+  }
+
+  function populateGearComboSelect(){
+    gearComboSelect.innerHTML = '<option value="">— none —</option>' + gearCombos.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if(defaultComboId && gearCombos.some(c => c.id === defaultComboId)){
+      gearComboSelect.value = defaultComboId;
+    }
+  }
+
+  gearCategoryList.addEventListener('click', async (e)=>{
+    const addBtn = e.target.closest('.gear-add-btn');
+    if(addBtn){
+      const cat = addBtn.dataset.cat;
+      const input = gearCategoryList.querySelector(`.gear-add-input[data-cat="${cat}"]`);
+      const val = input.value.trim();
+      if(!val) return;
+      if(!gearLists[cat].some(item => item.name === val)) gearLists[cat].push({ name: val, photo: null });
+      input.value = '';
+      await saveGearList(cat);
+      renderGearCategories();
+      populateComboSelects();
+      return;
+    }
+    const delBtn = e.target.closest('.gear-chip-del');
+    if(delBtn){
+      const cat = delBtn.dataset.cat, item = delBtn.dataset.item;
+      gearLists[cat] = gearLists[cat].filter(x => x.name !== item);
+      await saveGearList(cat);
+      renderGearCategories();
+      populateComboSelects();
+      return;
+    }
+    const photoBtn = e.target.closest('.gear-chip-photo');
+    if(photoBtn){
+      pendingGearPhotoTarget = { cat: photoBtn.dataset.cat, name: photoBtn.dataset.item };
+      gearPhotoInput.click();
+      return;
+    }
+  });
+
+  gearCategoryList.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && e.target.classList.contains('gear-add-input')){
+      e.preventDefault();
+      const cat = e.target.dataset.cat;
+      gearCategoryList.querySelector(`.gear-add-btn[data-cat="${cat}"]`).click();
+    }
+  });
+
+  saveComboBtn.addEventListener('click', async ()=>{
+    const rod = comboRod.value, reel = comboReel.value, line = comboLine.value, bait = comboBait.value;
+    if(!rod && !reel && !line && !bait){ showBanner('Pick at least one piece of gear for the combo.'); return; }
+    let name = comboName.value.trim();
+    if(!name) name = [rod, reel, line, bait].filter(Boolean).join(' + ');
+    gearCombos.push({ id: 'combo_' + Date.now(), name, rod, reel, line, bait });
+    await saveGearCombos();
+    comboName.value = '';
+    renderComboList();
+    populateGearComboSelect();
+  });
+
+  comboList.addEventListener('click', async (e)=>{
+    const defBtn = e.target.closest('.combo-default-btn');
+    if(defBtn){
+      defaultComboId = (defaultComboId === defBtn.dataset.id) ? null : defBtn.dataset.id;
+      await saveSettings();
+      renderComboList();
+      populateGearComboSelect();
+      return;
+    }
+    const btn = e.target.closest('.combo-del');
+    if(!btn) return;
+    gearCombos = gearCombos.filter(c => c.id !== btn.dataset.id);
+    if(defaultComboId === btn.dataset.id) defaultComboId = null;
+    await saveGearCombos();
+    await saveSettings();
+    renderComboList();
+    populateGearComboSelect();
+  });
+
+  gearPhotoInput.addEventListener('change', async ()=>{
+    const file = gearPhotoInput.files[0];
+    gearPhotoInput.value = '';
+    if(!file || !pendingGearPhotoTarget) return;
+    const { cat, name } = pendingGearPhotoTarget;
+    pendingGearPhotoTarget = null;
+    try{
+      const dataUrl = await resizeImageFile(file, 400, 0.5);
+      const item = gearLists[cat].find(i => i.name === name);
+      if(item){
+        item.photo = dataUrl;
+        await saveGearList(cat);
+        renderGearCategories();
+      }
+    } catch(e){
+      showBanner('Could not process that photo — try again.');
+    }
+  });
+
+  // ---- Weather auto-fill (Open-Meteo — free, no API key) ----
+  // ---- Species size limits & closed seasons, by country ----
+  // Country data is NOT bundled in the app — it's fetched on demand the first time that
+  // country is selected, then cached locally so it works offline after that. Keeps the
+  // app itself small no matter how many countries eventually get covered.
+  const FISHING_COUNTRIES = [
+    { code: 'HR', name: 'Croatia' },
+    { code: 'IT', name: 'Italy' },
+    { code: 'SI', name: 'Slovenia' },
+    { code: 'ME', name: 'Montenegro' },
+    { code: 'OTHER', name: 'Other / not listed' }
+  ];
+
+  const regulationsMemoryCache = {}; // code -> species array | null (null = confirmed unavailable), for this session
+
+  async function loadRegulationsForCountry(code){
+    if(!code) return null;
+    if(code in regulationsMemoryCache) return regulationsMemoryCache[code];
+
+    const storageKey = 'wake:regulations-' + code.toLowerCase();
+    // Already downloaded previously?
+    try{
+      const cached = await window.storage.get(storageKey, false);
+      if(cached && cached.value){
+        const parsed = JSON.parse(cached.value);
+        regulationsMemoryCache[code] = parsed.species || null;
+        return regulationsMemoryCache[code];
+      }
+    } catch(e){ /* not cached yet — fall through to fetch */ }
+
+    // First time this country's been picked: fetch it now.
+    try{
+      const res = await fetch('./regulations-' + code.toLowerCase() + '.json');
+      if(!res.ok) throw new Error('not found');
+      const data = await res.json();
+      try{ await window.storage.set(storageKey, JSON.stringify(data), false); } catch(e){}
+      regulationsMemoryCache[code] = data.species || null;
+      return regulationsMemoryCache[code];
+    } catch(e){
+      regulationsMemoryCache[code] = null;
+      return null;
+    }
+  }
+
+  function isSeasonClosedNow(season){
+    if(!season) return false;
+    const now = new Date();
+    const val = (now.getMonth()+1) * 100 + now.getDate();
+    const start = season.startM * 100 + season.startD;
+    const end = season.endM * 100 + season.endD;
+    return val >= start && val <= end;
+  }
+  function seasonText(season){
+    const MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `Closed ${MN[season.startM]} ${season.startD} – ${MN[season.endM]} ${season.endD}`;
+  }
+  async function findRegulation(speciesName){
+    if(!fishingCountry || !speciesName) return null;
+    const list = await loadRegulationsForCountry(fishingCountry);
+    if(!list) return null;
+    const q = speciesName.trim().toLowerCase();
+    if(!q) return null;
+    return list.find(r => r.names.some(n => q.includes(n) || n.includes(q))) || null;
+  }
+
+  let fishRegNoteToken = 0; // guards against a slower, older lookup overwriting a newer one
+  async function updateFishRegNote(){
+    if(!fishingCountry){ fishRegNote.textContent = ''; return; }
+    const myToken = ++fishRegNoteToken;
+    const typedValue = fishInput.value;
+    fishRegNote.style.color = 'var(--ink-soft)';
+    fishRegNote.textContent = typedValue.trim() ? 'Checking size limit…' : '';
+    const reg = await findRegulation(typedValue);
+    if(myToken !== fishRegNoteToken) return; // a newer keystroke has already superseded this
+    if(!reg){ fishRegNote.textContent = ''; return; }
+    const countryName = (FISHING_COUNTRIES.find(c => c.code === fishingCountry) || {}).name || fishingCountry;
+    let txt = `ℹ️ ${countryName} min size: ${reg.minSize}`;
+    if(reg.season){
+      const closedNow = isSeasonClosedNow(reg.season);
+      txt += closedNow ? ' · 🚫 Currently CLOSED season' : ' · has a closed season part of year';
+      fishRegNote.style.color = closedNow ? '#e08d80' : 'var(--amber)';
+    } else {
+      fishRegNote.style.color = 'var(--teal)';
+    }
+    fishRegNote.textContent = txt;
+  }
+  fishInput.addEventListener('input', updateFishRegNote);
+
+  async function renderRegulationsList(){
+    if(!fishingCountry){
+      regulationsList.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Set your fishing country in Settings → Regulations to see relevant size limits.</div>`;
+      return;
+    }
+    regulationsList.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Fetching…</div>`;
+    const list = await loadRegulationsForCountry(fishingCountry);
+    if(!list){
+      const countryName = (FISHING_COUNTRIES.find(c => c.code === fishingCountry) || {}).name || fishingCountry;
+      regulationsList.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">No verified size-limit data for ${countryName} yet — this will expand over time. Check your national fisheries authority directly for now.</div>`;
+      return;
+    }
+    regulationsList.innerHTML = list.map(r => {
+      const label = r.names[0].replace(/\b\w/g, c => c.toUpperCase());
+      const closedNow = r.season && isSeasonClosedNow(r.season);
+      return `<div class="warning-card ${closedNow ? 'severe' : ''}">
+        <b>${label}</b>
+        <div class="warning-meta">Min size: ${r.minSize}${r.season ? ' · ' + seasonText(r.season) + (closedNow ? ' · 🚫 closed now' : '') : ''}</div>
+      </div>`;
+    }).join('');
+  }
+  openRegulationsBtn.addEventListener('click', ()=>{
+    regulationsOverlay.classList.add('open');
+    renderRegulationsList();
+  });
+  closeRegulationsBtn.addEventListener('click', ()=> regulationsOverlay.classList.remove('open'));
+
+  // ---- Statistics — aggregated purely from your own logged trips/catches, no external data ----
+  async function computeStatistics(){
+    const index = await getIndex();
+    let totalDistNM = 0;
+    let totalDurationMs = 0;
+    const fishCounts = {};
+    const gearCounts = {};
+    const monthCounts = {};
+    let totalFish = 0;
+
+    const tallyMarkers = (mks) => {
+      (mks || []).forEach(m => {
+        if(m.type !== 'fish') return;
+        totalFish++;
+        const species = m.label || 'Unknown';
+        fishCounts[species] = (fishCounts[species] || 0) + 1;
+        if(m.gearCombo) gearCounts[m.gearCombo] = (gearCounts[m.gearCombo] || 0) + 1;
+        const monthKey = new Date(m.ts).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
+      });
+    };
+
+    for(const t of index){
+      totalDistNM += t.distanceNM || 0;
+      if(t.startedAt && t.endedAt) totalDurationMs += (t.endedAt - t.startedAt);
+      try{
+        const res = await window.storage.get(TRIP_PREFIX + t.id, false);
+        const data = JSON.parse(res.value);
+        tallyMarkers(data.markers);
+      } catch(e){}
+    }
+    // include the in-progress trip too
+    totalDistNM += totalDistanceNM(points);
+    if(startedAt) totalDurationMs += (Date.now() - startedAt);
+    tallyMarkers(markers);
+
+    const topOf = (obj) => {
+      let best = null, bestCount = 0;
+      for(const k in obj){ if(obj[k] > bestCount){ best = k; bestCount = obj[k]; } }
+      return best ? { name: best, count: bestCount } : null;
+    };
+
+    return {
+      totalTrips: index.length + (points.length ? 1 : 0),
+      totalDistNM,
+      totalDurationMs,
+      totalFish,
+      topSpecies: topOf(fishCounts),
+      topGear: topOf(gearCounts),
+      topMonth: topOf(monthCounts)
+    };
+  }
+
+  function statRow(label, value){
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #12324a;">
+      <span style="color:var(--ink-soft);font-size:13px;">${label}</span>
+      <span style="font-weight:600;font-size:13px;text-align:right;">${value}</span>
+    </div>`;
+  }
+
+  async function renderStats(){
+    statsContent.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 10px;font-size:13px;">Crunching your logs…</div>';
+    const s = await computeStatistics();
+    if(s.totalTrips === 0){
+      statsContent.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 10px;font-size:13px;">No trips logged yet — this fills in as you track and save trips.</div>';
+      return;
+    }
+    const durHrs = (s.totalDurationMs / 3600000).toFixed(1);
+    statsContent.innerHTML =
+      statRow('Trips logged', s.totalTrips) +
+      statRow('Total distance', s.totalDistNM.toFixed(1) + ' NM') +
+      statRow('Time tracked', durHrs + ' hrs') +
+      statRow('Fish caught', s.totalFish) +
+      statRow('Top species', s.topSpecies ? `${s.topSpecies.name} (${s.topSpecies.count})` : '—') +
+      statRow('Best gear combo', s.topGear ? `${s.topGear.name} (${s.topGear.count} catches)` : '—') +
+      statRow('Busiest month', s.topMonth ? `${s.topMonth.name} (${s.topMonth.count} catches)` : '—');
+  }
+
+  statsBtn.addEventListener('click', ()=>{
+    tripsOverlay.classList.remove('open');
+    statsOverlay.classList.add('open');
+    renderStats();
+  });
+  closeStatsBtn.addEventListener('click', ()=> statsOverlay.classList.remove('open'));
+
+  function cloudCategory(pct){
+    if(pct == null || isNaN(pct)) return '';
+    if(pct < 15) return 'clear';
+    if(pct < 45) return 'partly';
+    if(pct < 80) return 'cloudy';
+    return 'overcast';
+  }
+
+  async function fetchWeatherForSpot(lat, lon){
+    const result = { cloud: null, seaTemp: null, windSpeedMps: null };
+    try{
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=cloud_cover,wind_speed_10m&wind_speed_unit=ms`);
+      if(res.ok){
+        const data = await res.json();
+        if(data.current){
+          result.cloud = data.current.cloud_cover;
+          result.windSpeedMps = data.current.wind_speed_10m;
+        }
+      }
+    } catch(e){}
+    try{
+      const res2 = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=sea_surface_temperature`);
+      if(res2.ok){
+        const data2 = await res2.json();
+        if(data2.current) result.seaTemp = data2.current.sea_surface_temperature;
+      }
+    } catch(e){}
+    return result;
+  }
+
+  // Real tide reading from the Marine Weather API's sea-level data. Open-Meteo itself
+  // cautions that this is modeled at ~8km resolution and is less reliable in complex,
+  // semi-enclosed coastlines (the Adriatic is exactly that) — so this is a real, current
+  // data source, but treat the exact numbers as approximate, especially close to shore.
+  async function fetchTideInfo(lat, lon){
+    try{
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=sea_level_height_msl&forecast_days=2&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      if(!data.hourly || !data.hourly.sea_level_height_msl || !data.hourly.time) return null;
+      const times = data.hourly.time;
+      const levels = data.hourly.sea_level_height_msl;
+      const now = new Date();
+      let nowIdx = 0, minDiff = Infinity;
+      times.forEach((t, i) => { const diff = Math.abs(new Date(t) - now); if(diff < minDiff){ minDiff = diff; nowIdx = i; } });
+      if(nowIdx + 1 >= levels.length || levels[nowIdx] == null || levels[nowIdx+1] == null) return null;
+      const trend = levels[nowIdx+1] >= levels[nowIdx] ? 'rising' : 'falling';
+      let nextIdx = null, nextType = null;
+      for(let i = nowIdx + 1; i < levels.length - 1; i++){
+        if(levels[i] == null || levels[i-1] == null || levels[i+1] == null) continue;
+        if(levels[i] > levels[i-1] && levels[i] >= levels[i+1]){ nextIdx = i; nextType = 'high'; break; }
+        if(levels[i] < levels[i-1] && levels[i] <= levels[i+1]){ nextIdx = i; nextType = 'low'; break; }
+      }
+      const nextTimeStr = nextIdx != null ? new Date(times[nextIdx]).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : null;
+      const label = trend === 'rising' ? 'Rising' : 'Falling';
+      const detail = nextType && nextTimeStr ? `${label} — next ${nextType} tide ~${nextTimeStr}` : label;
+      return { trend, label: detail };
+    } catch(e){ return null; }
+  }
+
+  async function fetchAndFillWeather(coords){
+    if(!coords) return;
+    weatherStatus.textContent = 'Fetching local weather…';
+    tideDisplay.textContent = 'Tide: checking…';
+    const u = SPEED_UNITS[speedUnit] || SPEED_UNITS.knots;
+    windUnitLabel.textContent = u.label;
+    const w = await fetchWeatherForSpot(coords[0], coords[1]);
+    if(w.cloud != null && !cloudSelect.value) cloudSelect.value = cloudCategory(w.cloud);
+    if(w.seaTemp != null && !seaTempInput.value) seaTempInput.value = w.seaTemp.toFixed(1);
+    if(w.windSpeedMps != null && !windSpeedInput.value) windSpeedInput.value = (w.windSpeedMps * u.factor).toFixed(1);
+    if(w.cloud == null && w.seaTemp == null && w.windSpeedMps == null){
+      weatherStatus.textContent = 'Could not fetch weather (no signal?) — enter manually if you know it.';
+    } else {
+      weatherStatus.textContent = 'Auto-filled from Open-Meteo — edit anything that looks off.';
+    }
+    pendingTideInfo = await fetchTideInfo(coords[0], coords[1]);
+    tideDisplay.textContent = pendingTideInfo ? 'Tide: ' + pendingTideInfo.label + ' (est.)' : 'Tide: unavailable right now';
+  }
+
+  // ---- Multi-day forecast: pulls several independent weather models and takes the
+  // median across them each day, instead of trusting a single source. ----
+  const FORECAST_MODELS = ['gfs_seamless', 'icon_seamless', 'ecmwf_ifs025', 'meteofrance_seamless'];
+  const MODEL_FRIENDLY_NAMES = {
+    gfs_seamless: 'GFS (NOAA, USA)',
+    icon_seamless: 'ICON (DWD, Germany)',
+    ecmwf_ifs025: 'ECMWF (Europe)',
+    meteofrance_seamless: 'AROME/ARPEGE (Météo-France)'
+  };
+  const FORECAST_DAILY_VARS = ['temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_speed_10m_max','windspeed_10m_max','cloud_cover_mean'];
+
+  function normalizeWindField(day){
+    if(day.wind_speed_10m_max == null && day.windspeed_10m_max != null){
+      day.wind_speed_10m_max = day.windspeed_10m_max;
+      day.wind_speed_10m_max_count = day.windspeed_10m_max_count;
+    }
+    return day;
+  }
+
+  function median(arr){
+    const nums = arr.filter(v => typeof v === 'number' && !isNaN(v)).sort((a,b) => a - b);
+    if(nums.length === 0) return null;
+    const mid = Math.floor(nums.length / 2);
+    return nums.length % 2 ? nums[mid] : (nums[mid-1] + nums[mid]) / 2;
+  }
+
+  function buildConsensusForecast(data, days){
+    const dates = data.daily.time;
+    const results = [];
+    const modelsUsedSet = new Set();
+    for(let i = 0; i < dates.length && i < days; i++){
+      const day = { date: dates[i] };
+      FORECAST_DAILY_VARS.forEach(v => {
+        const dayValues = [];
+        FORECAST_MODELS.forEach(model => {
+          const key = v + '_' + model;
+          if(data.daily[key] && typeof data.daily[key][i] === 'number'){
+            dayValues.push(data.daily[key][i]);
+            modelsUsedSet.add(model);
+          }
+        });
+        day[v] = median(dayValues);
+        day[v + '_count'] = dayValues.length;
+      });
+      results.push(normalizeWindField(day));
+    }
+    return { days: results, modelsUsed: Array.from(modelsUsedSet), consensus: true };
+  }
+
+  function buildSingleModelForecast(data, days){
+    const dates = data.daily.time;
+    const results = [];
+    for(let i = 0; i < dates.length && i < days; i++){
+      const day = { date: dates[i] };
+      FORECAST_DAILY_VARS.forEach(v => {
+        day[v] = (data.daily[v] && typeof data.daily[v][i] === 'number') ? data.daily[v][i] : null;
+        day[v + '_count'] = 1;
+      });
+      results.push(normalizeWindField(day));
+    }
+    return { days: results, modelsUsed: ['best_match'], consensus: false };
+  }
+
+  // ---- Moon phase (pure calculation — no API needed, always available) ----
+  function computeMoonPhase(date){
+    const synodicMonth = 29.53058867;
+    const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+    const diffDays = (date.getTime() - knownNewMoon) / 86400000;
+    let phase = (diffDays % synodicMonth) / synodicMonth;
+    if(phase < 0) phase += 1;
+    const illumination = Math.round(((1 - Math.cos(2 * Math.PI * phase)) / 2) * 100);
+    let name, emoji;
+    if(phase < 0.03 || phase > 0.97){ name = 'New Moon'; emoji = '🌑'; }
+    else if(phase < 0.22){ name = 'Waxing Crescent'; emoji = '🌒'; }
+    else if(phase < 0.28){ name = 'First Quarter'; emoji = '🌓'; }
+    else if(phase < 0.47){ name = 'Waxing Gibbous'; emoji = '🌔'; }
+    else if(phase < 0.53){ name = 'Full Moon'; emoji = '🌕'; }
+    else if(phase < 0.72){ name = 'Waning Gibbous'; emoji = '🌖'; }
+    else if(phase < 0.78){ name = 'Last Quarter'; emoji = '🌗'; }
+    else { name = 'Waning Crescent'; emoji = '🌘'; }
+    return { illumination, name, emoji };
+  }
+
+  // Sunrise/sunset are exact astronomical calculations, not model-dependent, so a single
+  // source is fine here — no need for the multi-model consensus used for wind/temp/rain.
+  async function fetchSunTimes(lat, lon, days){
+    try{
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=sunrise,sunset&forecast_days=${days}&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      if(!data.daily || !data.daily.time) return null;
+      const map = {};
+      data.daily.time.forEach((date, i) => {
+        map[date] = { sunrise: data.daily.sunrise ? data.daily.sunrise[i] : null, sunset: data.daily.sunset ? data.daily.sunset[i] : null };
+      });
+      return map;
+    } catch(e){ return null; }
+  }
+
+  async function fetchConsensusForecast(lat, lon, days){
+    const dailyParam = FORECAST_DAILY_VARS.join(',');
+    const modelsParam = FORECAST_MODELS.join(',');
+    try{
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${dailyParam}&models=${modelsParam}&forecast_days=${days}&wind_speed_unit=ms&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('multi-model request failed');
+      const data = await res.json();
+      const built = buildConsensusForecast(data, days);
+      if(built.modelsUsed.length > 0) return built;
+      throw new Error('no per-model data in response');
+    } catch(e){
+      try{
+        const url2 = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${dailyParam}&forecast_days=${days}&wind_speed_unit=ms&timezone=auto`;
+        const res2 = await fetch(url2);
+        if(!res2.ok) throw new Error('fallback request failed');
+        const data2 = await res2.json();
+        return buildSingleModelForecast(data2, days);
+      } catch(e2){
+        return null;
+      }
+    }
+  }
+
+  // Rough starting-point thresholds for a personalized go/no-go read — general guidance
+  // only, not official safety advice. Always defer to official warnings and your own judgment.
+  const BOAT_THRESHOLDS = {
+    dinghy:   { goodWind: 10, goodWave: 0.3, cautionWind: 15, cautionWave: 0.6 },
+    rib:      { goodWind: 15, goodWave: 0.6, cautionWind: 20, cautionWave: 1.0 },
+    cruiser:  { goodWind: 20, goodWave: 1.0, cautionWind: 25, cautionWave: 1.5 },
+    sailboat: { goodWind: 20, goodWave: 1.2, cautionWind: 25, cautionWave: 2.0 }
+  };
+  const BOAT_TYPE_LABELS = { dinghy: 'small open boat', rib: 'RIB/runabout', cruiser: 'cabin cruiser', sailboat: 'sailboat' };
+
+  function computeAdvisory(windKt, waveM, boatType){
+    const th = BOAT_THRESHOLDS[boatType];
+    if(!th || windKt == null) return null;
+    const w = waveM != null ? waveM : 0;
+    if(windKt <= th.goodWind && w <= th.goodWave) return { tier: 'good', label: 'Good conditions', emoji: '✅' };
+    if(windKt <= th.cautionWind && w <= th.cautionWave) return { tier: 'caution', label: 'Use caution', emoji: '⚠️' };
+    return { tier: 'stayin', label: 'Consider staying in', emoji: '🚫' };
+  }
+
+  async function fetchWaveForecast(lat, lon, days){
+    try{
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&daily=wave_height_max&forecast_days=${days}&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      if(!data.daily || !data.daily.wave_height_max || !data.daily.time) return null;
+      const map = {};
+      data.daily.time.forEach((date, i) => { map[date] = data.daily.wave_height_max[i]; });
+      return map;
+    } catch(e){ return null; }
+  }
+
+  function forecastDayCardHtml(d, idx, waveMap, sunMap){
+    const date = new Date(d.date + 'T12:00:00');
+    const dayLabel = idx === 0 ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const tMax = d.temperature_2m_max != null ? Math.round(d.temperature_2m_max) : '–';
+    const tMin = d.temperature_2m_min != null ? Math.round(d.temperature_2m_min) : '–';
+    const precipProb = d.precipitation_probability_max != null ? Math.round(d.precipitation_probability_max) + '%' : '–';
+    const precipSum = d.precipitation_sum != null ? d.precipitation_sum.toFixed(1) + 'mm' : '';
+    const u = SPEED_UNITS[speedUnit] || SPEED_UNITS.knots;
+    const windMs = d.wind_speed_10m_max;
+    const wind = windMs != null ? (windMs * u.factor).toFixed(0) + ' ' + u.label : '–';
+    const cloudCat = d.cloud_cover_mean != null ? cloudCategory(d.cloud_cover_mean) : '';
+    const cloudTxt = CLOUD_LABELS[cloudCat] || '–';
+    const modelCount = d.temperature_2m_max_count || 0;
+    const waveM = waveMap ? waveMap[d.date] : null;
+    const waveTxt = waveM != null ? waveM.toFixed(1) + 'm' : '';
+
+    const moon = computeMoonPhase(date);
+    const sun = sunMap ? sunMap[d.date] : null;
+    const sunTxt = (sun && sun.sunrise && sun.sunset)
+      ? `☀ ${new Date(sun.sunrise).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}–${new Date(sun.sunset).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}`
+      : '';
+    const moonTxt = `${moon.emoji} ${moon.name} (${moon.illumination}%)`;
+
+    let advisoryHtml = '';
+    if(boatProfile && boatProfile.type){
+      const windKt = windMs != null ? windMs * SPEED_UNITS.knots.factor : null;
+      const adv = computeAdvisory(windKt, waveM, boatProfile.type);
+      if(adv){
+        advisoryHtml = `<div class="forecast-advisory ${adv.tier}">${adv.emoji} Estimate: ${adv.label} for your ${BOAT_TYPE_LABELS[boatProfile.type]}</div>`;
+      }
+    }
+
+    return `<div class="forecast-day">
+      <div class="forecast-day-row">
+        <div class="forecast-day-label">${dayLabel}</div>
+        <div class="forecast-temp">${tMax}°/${tMin}°C</div>
+        <div class="forecast-meta">💧 ${precipProb} ${precipSum} · 💨 ${wind}${waveTxt ? ' · 🌊 ' + waveTxt : ''} · ☁ ${cloudTxt}<br>${moonTxt}${sunTxt ? ' · ' + sunTxt : ''}</div>
+        <div class="forecast-models">${modelCount || 1} model${modelCount===1?'':'s'}</div>
+      </div>
+      ${advisoryHtml}
+    </div>`;
+  }
+
+  function getBestKnownCoords(callback){
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos => callback([pos.coords.latitude, pos.coords.longitude]),
+        () => callback(points.length ? [points[points.length-1][0], points[points.length-1][1]] : null),
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 }
+      );
+    } else {
+      callback(points.length ? [points[points.length-1][0], points[points.length-1][1]] : null);
+    }
+  }
+
+  async function loadAndRenderForecast(){
+    forecastList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 20px;font-size:13px;">Checking several weather models…</div>';
+    forecastMeta.textContent = '';
+    getBestKnownCoords(async (coords) => {
+      if(!coords){
+        forecastList.innerHTML = '<div style="text-align:center;color:var(--ink-soft);padding:36px 20px;font-size:13px;">Could not get a location for the forecast.</div>';
+        return;
+      }
+      const result = await fetchConsensusForecast(coords[0], coords[1], 7);
+      const waveMap = await fetchWaveForecast(coords[0], coords[1], 7);
+      const sunMap = await fetchSunTimes(coords[0], coords[1], 7);
+      const alerts = await fetchWeatherAlerts();
+      lastAlertList = alerts !== null ? alerts : lastAlertList;
+      let warningsHtml = '';
+      if(alerts === null){
+        warningsHtml = `<div class="warning-card"><div class="warning-meta">Could not check official weather warnings just now. <a href="https://meteoalarm.org/en/live/region/HR" target="_blank" rel="noopener" style="color:var(--teal);">Check the official site →</a></div></div>`;
+      } else {
+        const notable = alerts.filter(isNotableWarning);
+        if(notable.length){
+          warningsHtml = notable.map(w => {
+            const isSevere = (ALERT_SEVERITY_RANK[w.severity] || 0) >= 3;
+            const expText = !isNaN(new Date(w.expires)) ? new Date(w.expires).toLocaleString() : '';
+            return `<div class="warning-card ${isSevere ? 'severe' : 'moderate'}"><b>${isSevere ? '🔴' : '🟡'} ${w.event || w.title}</b><div class="warning-meta">${w.areaDesc}${expText ? ' · until ' + expText : ''}</div></div>`;
+          }).join('');
+        } else {
+          warningsHtml = `<div style="text-align:center;color:var(--ink-soft);font-size:12px;padding:4px 0 10px;">No active official warnings for Istria right now.</div>`;
+        }
+      }
+      if(!result){
+        forecastList.innerHTML = warningsHtml + '<div style="text-align:center;color:var(--ink-soft);padding:36px 20px;font-size:13px;">Could not reach the weather service — check your connection and try again.</div>';
+        return;
+      }
+      const disclaimerHtml = (boatProfile && boatProfile.type)
+        ? `<div class="advisory-disclaimer">⚠️ The Good/Caution/Stay-in reads below are this app's own rough estimate — <b>not an official maritime forecast or safety authority.</b> They don't know your boat's real condition, your experience, or local conditions. Always weigh them against the official warnings above and your own judgment — if in doubt, don't go out.</div>`
+        : '';
+      forecastList.innerHTML = disclaimerHtml + warningsHtml + result.days.map((d, i) => forecastDayCardHtml(d, i, waveMap, sunMap)).join('');
+      if(result.consensus){
+        const names = result.modelsUsed.map(m => MODEL_FRIENDLY_NAMES[m] || m).join(', ');
+        forecastMeta.textContent = `Median of ${result.modelsUsed.length} independent models: ${names}. The "N models" tag on each day shows how many actually agreed to give that figure.`;
+      } else {
+        forecastMeta.textContent = 'Multi-model comparison wasn\'t available — showing a single best-match forecast instead.';
+      }
+      if(!boatProfile || !boatProfile.type){
+        forecastMeta.textContent += ' Set up "My Boat" in Settings for a personalized go/no-go read on each day.';
+      } else if(!waveMap){
+        forecastMeta.textContent += ' Wave data wasn\'t available this time, so advisories below are based on wind only.';
+      }
+    });
+  }
+
+  // ---- Official weather warnings (MeteoAlarm — aggregates national weather services,
+  // DHMZ for Croatia). This is a best-effort feature: the feed may not allow direct
+  // browser fetches from every network, so failures are handled honestly rather than
+  // silently showing "all clear" when the check simply didn't work. ----
+  const ALERT_FEED_URL = 'https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-croatia';
+  const ALERT_REGION_KEYWORDS = ['istria', 'istarska', 'istrian'];
+  const ALERT_SEVERITY_RANK = { Minor: 1, Moderate: 2, Severe: 3, Extreme: 4 };
+  let seenAlertIds = new Set();
+  let lastAlertList = null;
+
+  function isRegionRelevantWarning(w){
+    return ALERT_REGION_KEYWORDS.some(k => (w.areaDesc || '').toLowerCase().includes(k));
+  }
+  function isNotableWarning(w){
+    return isRegionRelevantWarning(w) || (ALERT_SEVERITY_RANK[w.severity] || 0) >= 3;
+  }
+
+  // Returns an array of active warnings, or null if the feed could not be reached/parsed —
+  // callers must handle null explicitly rather than treating it as "no warnings."
+  async function fetchWeatherAlerts(){
+    try{
+      const res = await fetch(ALERT_FEED_URL);
+      if(!res.ok) throw new Error('bad response');
+      const text = await res.text();
+      const doc = new DOMParser().parseFromString(text, 'application/xml');
+      if(doc.querySelector('parsererror')) throw new Error('parse error');
+      const entries = Array.from(doc.getElementsByTagName('entry'));
+      const now = new Date();
+      return entries.map(entry => {
+        const get = (tag) => { const el = entry.getElementsByTagName(tag)[0]; return el ? el.textContent.trim() : ''; };
+        return {
+          id: get('cap:identifier') || get('id'),
+          areaDesc: get('cap:areaDesc'),
+          event: get('cap:event'),
+          severity: get('cap:severity'),
+          status: get('cap:status'),
+          onset: get('cap:onset'),
+          expires: get('cap:expires'),
+          title: get('title')
+        };
+      }).filter(w => {
+        if(w.status !== 'Actual') return false;
+        const exp = new Date(w.expires);
+        return isNaN(exp) || exp >= now;
+      });
+    } catch(e){
+      return null;
+    }
+  }
+
+  function renderAlertsList(warnings){
+    if(warnings === null){
+      alertsList.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">Could not reach the official warnings feed right now — check the link below directly instead.</div>`;
+      return;
+    }
+    const notable = warnings.filter(isNotableWarning);
+    if(notable.length === 0){
+      alertsList.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:13px;">No active official warnings for Istria, and nothing severe elsewhere in Croatia right now.</div>`;
+      return;
+    }
+    alertsList.innerHTML = notable.map(w => {
+      const isSevere = (ALERT_SEVERITY_RANK[w.severity] || 0) >= 3;
+      const expText = !isNaN(new Date(w.expires)) ? new Date(w.expires).toLocaleString() : '';
+      return `<div class="warning-card ${isSevere ? 'severe' : 'moderate'}">
+        <b>${isSevere ? '🔴' : '🟡'} ${w.event || w.title}</b>
+        <div class="warning-meta">${w.areaDesc}${expText ? ' · until ' + expText : ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function openAlertsDetail(){
+    alertsOverlay.classList.add('open');
+    renderAlertsList(lastAlertList);
+  }
+  closeAlertsBtn.addEventListener('click', ()=> alertsOverlay.classList.remove('open'));
+
+  async function checkAndShowAlertBanner(){
+    const all = await fetchWeatherAlerts();
+    if(all === null) return; // stay quiet on background failures — the details screen explains it when opened
+    lastAlertList = all;
+    const notable = all.filter(isNotableWarning);
+    const newOnes = notable.filter(w => !seenAlertIds.has(w.id));
+    if(newOnes.length > 0){
+      newOnes.forEach(w => seenAlertIds.add(w.id));
+      const top = newOnes.reduce((a, b) => (ALERT_SEVERITY_RANK[b.severity]||0) > (ALERT_SEVERITY_RANK[a.severity]||0) ? b : a);
+      alertBannerText.textContent = `⚠️ ${top.event || top.title}` + (newOnes.length > 1 ? ` (+${newOnes.length-1} more)` : '');
+      alertBanner.classList.remove('hidden');
+    }
+  }
+
+  alertDismissBtn.addEventListener('click', ()=> alertBanner.classList.add('hidden'));
+  alertDetailsBtn.addEventListener('click', ()=>{
+    alertBanner.classList.add('hidden');
+    openAlertsDetail();
+  });
+
+  function checkLicenseExpiry(){
+    if(!licenseExpiryDate) { licenseBanner.classList.add('hidden'); return; }
+    const now = new Date();
+    if(licenseSnoozedUntil && now < new Date(licenseSnoozedUntil)){ licenseBanner.classList.add('hidden'); return; }
+    const expiry = new Date(licenseExpiryDate + 'T23:59:59');
+    const daysLeft = Math.ceil((expiry - now) / 86400000);
+    if(daysLeft < 0){
+      licenseBannerText.textContent = `⚠️ Your fishing license expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft)===1?'':'s'} ago.`;
+      licenseBanner.classList.remove('hidden');
+    } else if(daysLeft <= 14){
+      licenseBannerText.textContent = `⚠️ Your fishing license expires in ${daysLeft} day${daysLeft===1?'':'s'} (${expiry.toLocaleDateString()}).`;
+      licenseBanner.classList.remove('hidden');
+    } else {
+      licenseBanner.classList.add('hidden');
+    }
+  }
+
+  licenseSnoozeBtn.addEventListener('click', ()=>{
+    licenseSnoozedUntil = new Date(Date.now() + 3*86400000).toISOString();
+    saveSettings();
+    licenseBanner.classList.add('hidden');
+  });
+
+  licenseRenewBtn.addEventListener('click', ()=>{
+    licenseRenewInput.value = licenseExpiryDate || '';
+    licenseRenewOverlay.classList.add('open');
+  });
+  licenseRenewCancelBtn.addEventListener('click', ()=> licenseRenewOverlay.classList.remove('open'));
+  licenseRenewSaveBtn.addEventListener('click', ()=>{
+    if(!licenseRenewInput.value) return;
+    licenseExpiryDate = licenseRenewInput.value;
+    licenseSnoozedUntil = null;
+    licenseExpiryInput.value = licenseExpiryDate;
+    saveSettings();
+    licenseRenewOverlay.classList.remove('open');
+    checkLicenseExpiry();
+  });
+
+  checkAndShowAlertBanner();
+  setInterval(checkAndShowAlertBanner, 20 * 60 * 1000); // recheck every 20 minutes while the app is open
+
+  forecastBtn.addEventListener('click', ()=>{
+    forecastOverlay.classList.add('open');
+    loadAndRenderForecast();
+  });
+  closeForecastBtn.addEventListener('click', ()=> forecastOverlay.classList.remove('open'));
+
+  // Average speed reconstructed from position history over the last N minutes — used for
+  // trolling speed, since by the time you've stopped the boat and opened this form, the
+  // boat's *current* speed is near zero and no longer represents how fast you were trolling.
+  function averageSpeedOverLastMinutes(minutes){
+    if(points.length < 2) return null;
+    const cutoff = Date.now() - minutes * 60000;
+    const windowPoints = points.filter(p => p[2] >= cutoff);
+    const usable = windowPoints.length >= 2 ? windowPoints : points.slice(-2);
+    if(usable.length < 2) return null;
+    let totalDistM = 0;
+    for(let i = 1; i < usable.length; i++){
+      totalDistM += haversineNM([usable[i-1][0], usable[i-1][1]], [usable[i][0], usable[i][1]]) * 1852;
+    }
+    const totalTimeSec = (usable[usable.length-1][2] - usable[0][2]) / 1000;
+    return totalTimeSec > 0 ? totalDistM / totalTimeSec : null;
+  }
+
+  techniqueSelect.addEventListener('change', ()=>{
+    const isTrolling = techniqueSelect.value === 'trolling';
+    trollingSpeedWrap.classList.toggle('hidden', !isTrolling);
+    if(isTrolling){
+      const u = SPEED_UNITS[speedUnit] || SPEED_UNITS.knots;
+      trollingSpeedUnitLabel.textContent = u.label;
+      if(!trollingSpeedInput.value){
+        const avgMps = averageSpeedOverLastMinutes(3);
+        const speedToUse = avgMps != null ? avgMps : currentSpeedMps;
+        trollingSpeedInput.value = (Math.max(0, speedToUse || 0) * u.factor).toFixed(1);
+      }
+    }
+  });
+
   fishLogBtn.addEventListener('click', ()=>{
     refreshFishFilterOptions();
     fishLogOverlay.classList.add('open');
@@ -1213,15 +3055,35 @@ if(navigator.storage && navigator.storage.persist){
   spotSave.addEventListener('click', async ()=>{
     if(!pendingSpotCoords){ showBanner('Still waiting on a GPS fix — try again in a moment.'); return; }
     let label = '';
+    let extraFields = {};
     if(selectedType === 'ascending' || selectedType === 'descending'){
       label = `${depthFrom.value}m → ${depthTo.value}m`;
     } else if(selectedType === 'fish'){
       label = fishInput.value.trim();
       await rememberFish(label);
+      const combo = gearComboSelect.value ? gearCombos.find(c => c.id === gearComboSelect.value) : null;
+      extraFields = {
+        weight: fishWeightInput.value ? parseFloat(fishWeightInput.value) : null,
+        gearCombo: combo ? combo.name : null,
+        technique: techniqueSelect.value || null,
+        trollingSpeed: (techniqueSelect.value === 'trolling' && trollingSpeedInput.value) ? parseFloat(trollingSpeedInput.value) : null,
+        trollingSpeedUnit: (techniqueSelect.value === 'trolling' && trollingSpeedInput.value) ? speedUnit : null,
+        cloud: cloudSelect.value || null,
+        seaTemp: seaTempInput.value ? parseFloat(seaTempInput.value) : null,
+        tide: pendingTideInfo ? pendingTideInfo.trend : null,
+        tideDetail: pendingTideInfo ? pendingTideInfo.label : null,
+        windSpeed: windSpeedInput.value ? parseFloat(windSpeedInput.value) : null,
+        windSpeedUnit: windSpeedInput.value ? speedUnit : null
+      };
     } else if(selectedType === 'other'){
       label = otherInput.value.trim();
     }
-    markers.push({ lat: pendingSpotCoords[0], lon: pendingSpotCoords[1], ts: Date.now(), type: selectedType, label, heading: pendingHeading, photo: (selectedType === 'fish' ? pendingPhotoDataUrl : null) });
+    markers.push({
+      lat: pendingSpotCoords[0], lon: pendingSpotCoords[1], ts: Date.now(), type: selectedType, label,
+      heading: pendingHeading, photo: (selectedType === 'fish' ? pendingPhotoDataUrl : null),
+      voiceNote: pendingVoiceNoteText ? pendingVoiceNoteText.trim() : null,
+      ...extraFields
+    });
     renderMarkers();
     await persistActive();
     closeSpotModal();
@@ -1237,7 +3099,19 @@ if(navigator.storage && navigator.storage.persist){
     }).join('\n');
     const wpts = (mks||[]).map(m => {
       const iso = new Date(m.ts).toISOString();
-      const cmt = typeof m.heading === 'number' ? `<cmt>Heading ~${Math.round(m.heading)}°</cmt>` : '';
+      const bits = [];
+      if(typeof m.heading === 'number') bits.push('Heading ~' + Math.round(m.heading) + '°');
+      if(typeof m.weight === 'number') bits.push(m.weight + 'kg');
+      if(m.gearCombo) bits.push('Gear: ' + m.gearCombo);
+      if(m.technique) bits.push('Technique: ' + (TECHNIQUE_LABELS[m.technique] || m.technique));
+      if(typeof m.trollingSpeed === 'number') bits.push('Boat speed: ' + m.trollingSpeed + ' ' + (m.trollingSpeedUnit || ''));
+      if(m.cloud) bits.push('Sky: ' + (CLOUD_LABELS[m.cloud] || m.cloud));
+      if(typeof m.seaTemp === 'number') bits.push('Sea: ' + m.seaTemp + '°C');
+      if(m.tideDetail) bits.push('Tide: ' + m.tideDetail);
+      else if(m.tide) bits.push('Tide: ' + m.tide);
+      if(typeof m.windSpeed === 'number') bits.push('Wind: ' + m.windSpeed + ' ' + (m.windSpeedUnit || ''));
+      if(m.voiceNote) bits.push('Note: ' + m.voiceNote);
+      const cmt = bits.length ? `<cmt>${esc(bits.join(' · '))}</cmt>` : '';
       return `  <wpt lat="${m.lat}" lon="${m.lon}"><time>${iso}</time><name>${esc(m.label)}</name><type>${esc(m.type)}</type>${cmt}</wpt>`;
     }).join('\n');
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -1298,6 +3172,8 @@ ${trkpts}
     markers = [];
     startedAt = null;
     includeInCombined = true;
+    followMode = true;
+    recenterBtn.classList.add('hidden');
     if(currentMarker){ map.removeLayer(currentMarker); currentMarker = null; }
     renderMarkers();
     redraw();
@@ -1404,8 +3280,16 @@ ${trkpts}
   // ---- Settings (speed unit + compass) ----
   const SETTINGS_KEY = 'wake:settings';
 
+  let licenseExpiryDate = null;
+  let licenseSnoozedUntil = null;
+
+  function populateCountrySelect(){
+    fishingCountrySelect.innerHTML = '<option value="">— not set —</option>' +
+      FISHING_COUNTRIES.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  }
+
   async function saveSettings(){
-    try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({ speedUnit, showCompass }), false); }
+    try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({ speedUnit, showCompass, defaultComboId, currentLang, boatProfile, fishingCountry, licenseExpiryDate, licenseSnoozedUntil, showDepth, hasShownDepthDisclaimer, showZones, hasShownZonesDisclaimer }), false); }
     catch(e){ console.error('settings save failed', e); }
   }
 
@@ -1416,10 +3300,38 @@ ${trkpts}
         const data = JSON.parse(res.value);
         if(data.speedUnit) speedUnit = data.speedUnit;
         showCompass = !!data.showCompass;
+        defaultComboId = data.defaultComboId || null;
+        if(data.currentLang) currentLang = data.currentLang;
+        if(data.boatProfile) boatProfile = data.boatProfile;
+        fishingCountry = data.fishingCountry || null;
+        licenseExpiryDate = data.licenseExpiryDate || null;
+        licenseSnoozedUntil = data.licenseSnoozedUntil || null;
+        showDepth = !!data.showDepth;
+        hasShownDepthDisclaimer = !!data.hasShownDepthDisclaimer;
+        showZones = !!data.showZones;
+        hasShownZonesDisclaimer = !!data.hasShownZonesDisclaimer;
       }
     } catch(e){}
+    applyDepthLayerState();
+    applyZonesLayerState();
+    boatTypeSelect.value = boatProfile.type || '';
+    boatLengthInput.value = boatProfile.length != null ? boatProfile.length : '';
+    engineTypeSelect.value = boatProfile.engineType || '';
+    enginePowerInput.value = boatProfile.enginePower != null ? boatProfile.enginePower : '';
+    populateCountrySelect();
+    fishingCountrySelect.value = fishingCountry || '';
+    licenseExpiryInput.value = licenseExpiryDate || '';
+    checkLicenseExpiry();
+    if(!fishingCountry){
+      onboardCountrySelect.innerHTML = FISHING_COUNTRIES.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+      onboardOverlay.classList.add('open');
+    }
+    document.querySelectorAll('#langGrid .unit-btn').forEach(b => b.classList.toggle('selected', b.dataset.lang === currentLang));
+    applyLanguage();
     document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('selected', b.dataset.unit === speedUnit));
     updateSpeedDisplay();
+    populateGearComboSelect();
+    renderComboList();
     compassToggle.checked = showCompass;
     if(showCompass){
       compassWidget.classList.add('visible');
@@ -1506,6 +3418,171 @@ ${trkpts}
     restoreInput.value = '';
   });
 
+  // ---- Language (scoped to main controls/titles for now) ----
+  const I18N = {
+    en: {
+      startTracking: 'Start tracking', stopTracking: 'Stop tracking', resumeTracking: 'Resume tracking',
+      finishSave: 'Finish & Save Trip', exportGpx: 'Export GPX',
+      saveSpotBtn: 'Save<br>Spot', anchorBtn: 'Anchor', tripsBtn: 'Trips',
+      distLabel: 'NM COVERED', timeLabel: 'ELAPSED', fixesLabel: 'FIXES',
+      saveThisSpot: 'Save this spot', savedTrips: 'Saved trips', settingsTitle: 'Settings', fishLogTitle: 'Fish log',
+      ascending: '↑ Ascending', ascendingSub: 'depth getting shallower',
+      descending: '↓ Descending', descendingSub: 'depth getting deeper',
+      fish: '🐟 Fish', other: '✎ Other',
+      cancel: 'Cancel', saveSpot: 'Save spot', close: 'Close',
+      combinedView: '🗺 View combined coverage (all trips)',
+      stopAnchor: 'Stop anchor', saveAsSpot: '🐟 Save as spot', dismiss: '✕ Dismiss',
+      speedUnitHeader: 'Speed unit', compassHeader: 'Compass', backupHeader: 'Backup', gearHeader: 'Gear'
+    },
+    hr: {
+      startTracking: 'Pokreni praćenje', stopTracking: 'Zaustavi praćenje', resumeTracking: 'Nastavi praćenje',
+      finishSave: 'Završi i spremi izlet', exportGpx: 'Izvezi GPX',
+      saveSpotBtn: 'Spremi<br>točku', anchorBtn: 'Sidro', tripsBtn: 'Izleti',
+      distLabel: 'NM PREĐENO', timeLabel: 'VRIJEME', fixesLabel: 'TOČAKA',
+      saveThisSpot: 'Spremi ovu točku', savedTrips: 'Spremljeni izleti', settingsTitle: 'Postavke', fishLogTitle: 'Dnevnik ribolova',
+      ascending: '↑ Uspon', ascendingSub: 'dubina se smanjuje',
+      descending: '↓ Spust', descendingSub: 'dubina se povećava',
+      fish: '🐟 Riba', other: '✎ Ostalo',
+      cancel: 'Odustani', saveSpot: 'Spremi točku', close: 'Zatvori',
+      combinedView: '🗺 Prikaži ukupno pokriveno (svi izleti)',
+      stopAnchor: 'Zaustavi sidro', saveAsSpot: '🐟 Spremi kao točku', dismiss: '✕ Odbaci',
+      speedUnitHeader: 'Jedinica brzine', compassHeader: 'Kompas', backupHeader: 'Sigurnosna kopija', gearHeader: 'Oprema'
+    },
+    zh: {
+      startTracking: '开始追踪', stopTracking: '停止追踪', resumeTracking: '继续追踪',
+      finishSave: '结束并保存行程', exportGpx: '导出 GPX',
+      saveSpotBtn: '保存<br>位置', anchorBtn: '锚点', tripsBtn: '行程',
+      distLabel: '海里覆盖', timeLabel: '已用时间', fixesLabel: '定位点',
+      saveThisSpot: '保存此位置', savedTrips: '已保存的行程', settingsTitle: '设置', fishLogTitle: '钓鱼日志',
+      ascending: '↑ 变浅', ascendingSub: '水深变浅',
+      descending: '↓ 变深', descendingSub: '水深变深',
+      fish: '🐟 鱼', other: '✎ 其他',
+      cancel: '取消', saveSpot: '保存位置', close: '关闭',
+      combinedView: '🗺 查看总覆盖范围（所有行程）',
+      stopAnchor: '停止锚定', saveAsSpot: '🐟 保存为位置', dismiss: '✕ 关闭',
+      speedUnitHeader: '速度单位', compassHeader: '指南针', backupHeader: '备份', gearHeader: '装备'
+    },
+    hi: {
+      startTracking: 'ट्रैकिंग शुरू करें', stopTracking: 'ट्रैकिंग रोकें', resumeTracking: 'ट्रैकिंग जारी रखें',
+      finishSave: 'यात्रा समाप्त करें और सहेजें', exportGpx: 'GPX निर्यात करें',
+      saveSpotBtn: 'स्थान<br>सहेजें', anchorBtn: 'लंगर', tripsBtn: 'यात्राएँ',
+      distLabel: 'एनएम कवर', timeLabel: 'समय', fixesLabel: 'बिंदु',
+      saveThisSpot: 'यह स्थान सहेजें', savedTrips: 'सहेजी गई यात्राएँ', settingsTitle: 'सेटिंग्स', fishLogTitle: 'मछली पकड़ने की डायरी',
+      ascending: '↑ उथला हो रहा', ascendingSub: 'गहराई कम हो रही है',
+      descending: '↓ गहरा हो रहा', descendingSub: 'गहराई बढ़ रही है',
+      fish: '🐟 मछली', other: '✎ अन्य',
+      cancel: 'रद्द करें', saveSpot: 'स्थान सहेजें', close: 'बंद करें',
+      combinedView: '🗺 कुल कवरेज देखें (सभी यात्राएँ)',
+      stopAnchor: 'लंगर रोकें', saveAsSpot: '🐟 स्थान के रूप में सहेजें', dismiss: '✕ खारिज करें',
+      speedUnitHeader: 'गति इकाई', compassHeader: 'कंपास', backupHeader: 'बैकअप', gearHeader: 'उपकरण'
+    },
+    es: {
+      startTracking: 'Iniciar seguimiento', stopTracking: 'Detener seguimiento', resumeTracking: 'Reanudar seguimiento',
+      finishSave: 'Finalizar y guardar viaje', exportGpx: 'Exportar GPX',
+      saveSpotBtn: 'Guardar<br>punto', anchorBtn: 'Ancla', tripsBtn: 'Viajes',
+      distLabel: 'MN CUBIERTAS', timeLabel: 'TIEMPO', fixesLabel: 'PUNTOS',
+      saveThisSpot: 'Guardar este punto', savedTrips: 'Viajes guardados', settingsTitle: 'Ajustes', fishLogTitle: 'Registro de pesca',
+      ascending: '↑ Ascendiendo', ascendingSub: 'la profundidad disminuye',
+      descending: '↓ Descendiendo', descendingSub: 'la profundidad aumenta',
+      fish: '🐟 Pez', other: '✎ Otro',
+      cancel: 'Cancelar', saveSpot: 'Guardar punto', close: 'Cerrar',
+      combinedView: '🗺 Ver cobertura combinada (todos los viajes)',
+      stopAnchor: 'Detener ancla', saveAsSpot: '🐟 Guardar como punto', dismiss: '✕ Descartar',
+      speedUnitHeader: 'Unidad de velocidad', compassHeader: 'Brújula', backupHeader: 'Copia de seguridad', gearHeader: 'Equipo'
+    },
+    ar: {
+      startTracking: 'بدء التتبع', stopTracking: 'إيقاف التتبع', resumeTracking: 'استئناف التتبع',
+      finishSave: 'إنهاء الرحلة وحفظها', exportGpx: 'تصدير GPX',
+      saveSpotBtn: 'حفظ<br>الموقع', anchorBtn: 'مرساة', tripsBtn: 'الرحلات',
+      distLabel: 'الأميال المغطاة', timeLabel: 'الوقت', fixesLabel: 'النقاط',
+      saveThisSpot: 'حفظ هذا الموقع', savedTrips: 'الرحلات المحفوظة', settingsTitle: 'الإعدادات', fishLogTitle: 'سجل الصيد',
+      ascending: '↑ ارتفاع', ascendingSub: 'العمق يقل',
+      descending: '↓ انخفاض', descendingSub: 'العمق يزيد',
+      fish: '🐟 سمكة', other: '✎ أخرى',
+      cancel: 'إلغاء', saveSpot: 'حفظ الموقع', close: 'إغلاق',
+      combinedView: '🗺 عرض التغطية الكلية (كل الرحلات)',
+      stopAnchor: 'إيقاف المرساة', saveAsSpot: '🐟 حفظ كموقع', dismiss: '✕ تجاهل',
+      speedUnitHeader: 'وحدة السرعة', compassHeader: 'البوصلة', backupHeader: 'نسخة احتياطية', gearHeader: 'المعدات'
+    }
+  };
+
+  function t(key){ return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key; }
+
+  function applyLanguage(){
+    toggleBtn.textContent = tracking ? t('stopTracking') : (startedAt ? t('resumeTracking') : t('startTracking'));
+    finishBtn.textContent = t('finishSave');
+    exportBtn.textContent = t('exportGpx');
+    fabSpot.innerHTML = '<span class="fab-icon">📍</span>' + t('saveSpotBtn');
+    fabAnchor.innerHTML = '<span class="fab-icon">⚓</span>' + t('anchorBtn');
+    tripsBtn.textContent = t('tripsBtn');
+    const q = (sel) => document.querySelector(sel);
+    if(q('#stats .stat:nth-child(1) small')) q('#stats .stat:nth-child(1) small').textContent = t('distLabel');
+    if(q('#stats .stat:nth-child(3) small')) q('#stats .stat:nth-child(3) small').textContent = t('timeLabel');
+    if(q('#stats .stat:nth-child(4) small')) q('#stats .stat:nth-child(4) small').textContent = t('fixesLabel');
+    if(q('#spotModal h2')) q('#spotModal h2').textContent = t('saveThisSpot');
+    if(q('#tripsOverlay h2')) q('#tripsOverlay h2').textContent = t('savedTrips');
+    if(q('#settingsOverlay h2')) q('#settingsOverlay h2').textContent = t('settingsTitle');
+    if(q('#fishLogOverlay h2')) q('#fishLogOverlay h2').textContent = t('fishLogTitle');
+    closeTripsBtn.textContent = t('close');
+    closeSettingsBtn.textContent = t('close');
+    closeFishLogBtn.textContent = t('close');
+    document.querySelector('.type-btn[data-type="ascending"]').innerHTML = t('ascending') + '<br><small>' + t('ascendingSub') + '</small>';
+    document.querySelector('.type-btn[data-type="descending"]').innerHTML = t('descending') + '<br><small>' + t('descendingSub') + '</small>';
+    document.querySelector('.type-btn[data-type="fish"]').textContent = t('fish');
+    document.querySelector('.type-btn[data-type="other"]').textContent = t('other');
+    spotCancel.textContent = t('cancel');
+    spotSave.textContent = t('saveSpot');
+    combinedViewBtn.textContent = t('combinedView');
+    anchorStopBtn.textContent = t('stopAnchor');
+    anchorSaveBtn.textContent = t('saveAsSpot');
+    anchorDismissBtn.textContent = t('dismiss');
+    if(q('.settings-block:nth-of-type(2) h3')) q('.settings-block:nth-of-type(2) h3').textContent = t('speedUnitHeader');
+    if(q('.settings-block:nth-of-type(3) h3')) q('.settings-block:nth-of-type(3) h3').textContent = t('compassHeader');
+    if(q('.settings-block:nth-of-type(4) h3')) q('.settings-block:nth-of-type(4) h3').textContent = t('backupHeader');
+    if(q('.settings-block:nth-of-type(8) h3')) q('.settings-block:nth-of-type(8) h3').textContent = t('gearHeader');
+  }
+
+  langGrid.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.unit-btn');
+    if(!btn) return;
+    currentLang = btn.dataset.lang;
+    document.querySelectorAll('#langGrid .unit-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    applyLanguage();
+    saveSettings();
+  });
+
+  [boatTypeSelect, boatLengthInput, engineTypeSelect, enginePowerInput].forEach(el => {
+    el.addEventListener('change', ()=>{
+      boatProfile = {
+        type: boatTypeSelect.value,
+        length: boatLengthInput.value ? parseFloat(boatLengthInput.value) : null,
+        engineType: engineTypeSelect.value,
+        enginePower: enginePowerInput.value ? parseFloat(enginePowerInput.value) : null
+      };
+      saveSettings();
+    });
+  });
+
+  onboardContinueBtn.addEventListener('click', ()=>{
+    fishingCountry = onboardCountrySelect.value;
+    fishingCountrySelect.value = fishingCountry;
+    saveSettings();
+    onboardOverlay.classList.remove('open');
+  });
+
+  fishingCountrySelect.addEventListener('change', ()=>{
+    fishingCountry = fishingCountrySelect.value || null;
+    saveSettings();
+    updateFishRegNote();
+  });
+
+  licenseExpiryInput.addEventListener('change', ()=>{
+    licenseExpiryDate = licenseExpiryInput.value || null;
+    licenseSnoozedUntil = null; // a manually-entered new date should always re-check fresh
+    saveSettings();
+    checkLicenseExpiry();
+  });
+
   unitGrid.addEventListener('click', (e)=>{
     const btn = e.target.closest('.unit-btn');
     if(!btn) return;
@@ -1524,6 +3601,7 @@ ${trkpts}
     }
     if(heading == null || isNaN(heading)) return;
     heading = (heading + 360) % 360;
+    currentCompassHeading = heading;
     compassDial.style.transform = 'rotate(' + (-heading) + 'deg)';
     compassDeg.textContent = Math.round(heading) + '°';
   }
@@ -1600,6 +3678,7 @@ ${trkpts}
     }
     renderMarkers();
     await loadKnownFish();
+    await loadGear();
     await loadSettings();
     centerOnCurrentLocation();
   }
